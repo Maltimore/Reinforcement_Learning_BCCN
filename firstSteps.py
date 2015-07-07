@@ -50,6 +50,7 @@ def in_maze(x, y):
     else:
         return False
 
+
 def in_pickup(x, y):
     """Returns True if given coordinates are inside the pickup area"""
     if x>=90 and x<=110 and y>=50 and y<=60:
@@ -57,19 +58,23 @@ def in_pickup(x, y):
     else:
         return False
 
+
 def in_target(x, y):
     """Returns True if given coordinates are inside the target area"""
     if x>=0 and x<=20 and y>=50 and y<=60:
         return True
     else:
         return False
-        
+   
+     
 def input_layer(centers, state):
     """
-    Computes the neurons in the input layer
+    Computes the activity of the neurons in the input layer.
     
     This function copmutes the activity of all neurons in the input 
-    layer. Sigma is assumed to be 5.
+    layer. Sigma is assumed to be 5. This function does not perform
+    a check whether the state is within the maze, this is assumed
+    to be the case.
     
     Parameters:
     centers: array-like
@@ -104,13 +109,44 @@ def input_layer(centers, state):
                          "is not 0 or 1"))
     return R
 
-state = [55,30,0]
-centers = gen_place_centers()
-R = 1/np.abs(np.log(input_layer(centers, state)[:,0])) * 100
-plt.scatter(centers[:,0],centers[:,1], s=R, color="blue")
-plt.scatter(state[0],state[1], s = np.amax(R)/10, color="black")
-plt.title("Activity of neurons shown as size of dots (with logarithmic scale)")
 
+def output_layer(R, W):
+    """
+    Computes the activity of the neurons in the output layer.
+    
+    This function computes the activity of the neurons in the output 
+    layer.
+    
+    Parameters:
+    R:       array-like
+             shape: N_input_neurons x 2 (beta indices)
+             The activity of the neurons in the input layer.
+    W:       array-like
+             shape: N_output_neurons x N_input_neurons x beta_indices
+             Connectivity matrix, follows format [input_neuron,
+             output_neuron, beta] (corresponds to [a,j,beta] from
+             the problem sheet)
+    
+    Returns:
+    Q:       array-like
+             shape: N_output_neurons
+             The activity of the nreurons in the output layer.
+    dirs:    array-like
+             shape: N_output_neurons
+             The directions that the output neurons correspond to.
+    """
+    N_a = W.shape[0]
+    
+    # Compute Q
+    # The following admittedly looks cryptic, but I tested it and it works    
+    sum_over_outputs = np.sum(W[:,:,:] * R[np.newaxis,:,:], axis=1)
+    Q = np.sum(sum_over_outputs, axis=1)
+    
+    # Compute directions
+    dirs = 2*np.pi*np.arange(1,N_a+1) / N_a    
+    
+    return Q, dirs
+    
 
 
 # test in_maze()
@@ -121,12 +157,20 @@ print("The following should be True : " + str(in_maze(50,49)))
 print("The following should be False: " + str(in_maze(50,61)))
 print("The following should be False: " + str(in_maze(-1,50)))
 print("The following should be True : " + str(in_maze(55,30)))
-    
 
+# test input_layer()
+state = [55,55,0]
+centers = gen_place_centers()
+R = 1/np.abs(np.log(input_layer(centers, state)[:,0])) * 100
+plt.scatter(centers[:,0],centers[:,1], s=R, color="blue")
+plt.scatter(state[0],state[1], s = np.amax(R)/10, color="black")
+plt.title("Activity of neurons shown as size of dots (with logarithmic scale)")
     
-    
-    
-#plt.show()
+# test output_layer()
+W = np.ones((4,centers.shape[0],2))
+W[2,:,:] = 2
+R = input_layer(centers,state)
+Q, directions = output_layer(R, W)
 
 
 
