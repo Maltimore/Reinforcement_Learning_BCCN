@@ -72,33 +72,36 @@ def input_layer(centers, state):
     layer. Sigma is assumed to be 5.
     
     Parameters:
-    centers: N_neurons x 2 (coordinates) - array
-             the centers of the input neurons
-    state:   3 element - array or array-like
-             containing the following elements: [x, y, beta]
+    centers: array-like
+             shape: N_neurons x 2 (x and y coordinates)
+             The centers of the input neurons
+    state:   array-like
+             shape: 3 elements
+             Containing the following elements: [x, y, alpha]
              
     Returns:
-    R:       N_neurons x 2 (beta states) array
+    R:       array-like
+             shape: N_neurons x 2 (beta indices)
              An array containing the activity of all neurons,
              with element at position [j,beta] corresponding to 
-             activity for the neuron j with state index beta.
+             activity for the neuron j with population index beta.
     """
     sigma = 5    
     x = state[0]
     y = state[1]
-    beta = state[2]
+    alpha = state[2]
     R = np.zeros((centers.shape[0],2))
-    if beta == 0:
+    if alpha == 0:
         R[:,0] = np.exp(- ((centers[:,0] - x)**2 + (centers[:,1] - y)**2)
                         / (2 * sigma**2))
         R[:,1] = 0
-    elif beta == 1:
+    elif alpha == 1:
         R[:,0] = 0 
         R[:,1] = np.exp(- ((centers[:,0] - x)**2 + (centers[:,1] - y)**2)
                         / (2 * sigma**2))
     else:
-        print("input_layer function was called with beta that is not 0 or 1")
-        raise(Exception)
+        raise(Exception("input_layer function was called with alpha that " \
+                         "is not 0 or 1"))
     return R
 
 state = [55,30,0]
