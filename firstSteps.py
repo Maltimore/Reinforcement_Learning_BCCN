@@ -134,6 +134,7 @@ def output_layer(R, W):
     dirs:    array-like
              shape: N_output_neurons
              The directions that the output neurons correspond to.
+             Unit is radians.
     """
     N_a = W.shape[0]
     
@@ -146,7 +147,49 @@ def output_layer(R, W):
     dirs = 2*np.pi*np.arange(1,N_a+1) / N_a    
     
     return Q, dirs
+
+
+def choose_action(Q, directions, epsilon):
+    """
+    Choose an action.
     
+    Function returns an action that the mouse takes. The action
+    is the x and y value of the movement that the rat will perform.
+    
+    Parameters:
+    Q:       array-like
+             shape: N_output_neurons
+             The activity of the nreurons in the output layer.
+    dirs:    array-like
+             shape: N_output_neurons
+             The directions that the output neurons correspond to.
+             Unit is radians.
+    epsilon: float
+             The epsilon value determines how many times (relatively)
+             the mouse chooses an exploratory action instead of the
+             reward maximizing action.
+             
+    Returns:
+    action:  [int, int]
+             The step [x value, y value] that the mouse will take.
+    """
+    # set mean and standard deviation values for step
+    mean = 3
+    sd = 1.5
+    # determine stepsize
+    stepsize = np.random.normal(loc=mean, scale=sd)
+    
+    # choose action
+    if np.random.uniform() < epsilon:
+        # take exploratory action
+        angle = directions[np.random.randint(Q.shape[0])]
+    else:
+        # take exploitative action
+        angle = directions[np.argmax(Q)]
+    
+    action = stepsize * np.array([np.cos(angle), np.sin(angle)])
+    
+    return action
 
 
 # test in_maze()
@@ -171,6 +214,11 @@ W = np.ones((4,centers.shape[0],2))
 W[2,:,:] = 2
 R = input_layer(centers,state)
 Q, directions = output_layer(R, W)
+
+position = np.array([55.,0.])
+for i in range(100):
+    position += choose_action(Q, directions, .2)
+    plt.scatter(position[0], position[1])
 
 
 
