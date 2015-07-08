@@ -170,7 +170,9 @@ def choose_action(Q, directions, epsilon):
              reward maximizing action.
              
     Returns:
-    action:  [int, int]
+    a:       int
+             the action as index of Q values
+    step:    [int, int]
              The step [x value, y value] that the mouse will take.
     """
     # set mean and standard deviation values for step
@@ -182,43 +184,221 @@ def choose_action(Q, directions, epsilon):
     # choose action
     if np.random.uniform() < epsilon:
         # take exploratory action
-        angle = directions[np.random.randint(Q.shape[0])]
+        a = np.random.randint(Q.shape[0])
+        angle = directions[a]
     else:
         # take exploitative action
-        angle = directions[np.argmax(Q)]
+        a = np.argmax(Q)
+        angle = directions[a]
     
-    action = stepsize * np.array([np.cos(angle), np.sin(angle)])
+    step = stepsize * np.array([np.cos(angle), np.sin(angle)])
     
-    return action
+    return a, step
 
 
+def get_reward(state):
+    """ Compute reward for given state."""    
+    
+    x = state[0]
+    y = state[1]
+    alpha = state[2]
+    
+    if in_target(x, y) and alpha == 1:
+        return 20
+    elif not in_maze(x, y):
+        return -1
+    else:
+        return 0
+
+
+def update_state(state, step):
+    """
+    Does action step.
+
+    Does action step and returns new state. Also checks whether
+    a reward is received. In this exercise, if a reward is 
+    received, this means that a terminal state has been reached.
+    
+    Parameters:
+    state:     array-like
+               shape: 3 elements
+               Containing the following elements: [x, y, alpha]
+    step:      [int, int]
+               The step [x value, y value] that the mouse will take.  
+               shape: 3 elements
+               Containing the following elements: [x, y, alpha]    
+               
+    Returns:
+    new_state: array-like
+               shape: 3 elements
+               Containing the following elements: [x, y, alpha]
+    reward:    int
+               reward that was received for performing last step.
+    """
+    alpha = state[2]    
+    # calculate new position    
+    x = state[0] + step[0]
+    y = state[1] + step[1]
+    new_state = [x, y, alpha]
+    
+    # update alpha if necessary
+    if alpha == 0:
+        if in_pickup(x, y):
+            new_state[2] = 1
+    
+    # check if final goal is reached
+    if alpha == 1 and in_target(x, y):
+        return new_state, 20
+    
+    # check if the rat ran into a wall
+    if not in_maze(x, y):
+        return new_state, -1
+    else:
+        # if the rat didn't run into a wall and nothing else happened
+        # return 0 reward
+        return new_state, 0
+
+def update_weights(R_t, Q_t, action_t, reward, Q_tp,
+                   W, eta=.3, gamma=.95, lambda_=1):
+    """
+    Update weights according to SARSA.
+    
+    Update the weights of the neuron from input layer to output layer
+    according to the SARSA rule.
+    
+    Parameters:
+    R_t:        activity of inputs
+    Q_t:        Q value of state_t, action_t pair
+    action_t:   int
+                action taken at timestep t
+    reward:     int
+                reward received after choosing action_t at timestep
+                t and being in state_t
+    Q_tp:       Q value of state_tp, action_tp pair
+    W:          array-like
+                shape: N_output_neurons x N_input_neurons x beta_indices
+                Connectivity matrix, follows format [input_neuron,
+                output_neuron, beta] (corresponds to [a,j,beta] from
+                the problem sheet)
+    eta:        float
+                Learning rate
+    gamma:      float
+                Discount factor
+    lambda_:    float
+                Decay rate
+    """
+    delta_Q = eta * (reward + gamma*Q_tp - Q_t)
+    print("delta Q: " + str(delta_Q))
+    delta_W = delta_Q * R_t
+#    print("Biggest change in W is: " + str(np.amax(delta_W)))
+    W[action_t,:,:] = W[action_t,:,:] + delta_W
+    
+    return W
+    
+    
 # test in_maze()
-print("Testing in_maze()")
-print("The following should be True : " + str(in_maze(50,50)))
-print("The following should be False: " + str(in_maze(49,49)))
-print("The following should be True : " + str(in_maze(50,49)))
-print("The following should be False: " + str(in_maze(50,61)))
-print("The following should be False: " + str(in_maze(-1,50)))
-print("The following should be True : " + str(in_maze(55,30)))
+#print("Testing in_maze()")
+#print("The following should be True : " + str(in_maze(50,50)))
+#print("The following should be False: " + str(in_maze(49,49)))
+#print("The following should be True : " + str(in_maze(50,49)))
+#print("The following should be False: " + str(in_maze(50,61)))
+#print("The following should be False: " + str(in_maze(-1,50)))
+#print("The following should be True : " + str(in_maze(55,30)))
 
 # test input_layer()
-state = [55,55,0]
-centers = gen_place_centers()
-R = 1/np.abs(np.log(input_layer(centers, state)[:,0])) * 100
-plt.scatter(centers[:,0],centers[:,1], s=R, color="blue")
-plt.scatter(state[0],state[1], s = np.amax(R)/10, color="black")
-plt.title("Activity of neurons shown as size of dots (with logarithmic scale)")
+#state = [55,55,0]
+#centers = gen_place_centers()
+#R = 1/np.abs(np.log(input_layer(centers, state)[:,0])) * 100
+#plt.scatter(centers[:,0],centers[:,1], s=R, color="blue")
+#plt.scatter(state[0],state[1], s = np.amax(R)/10, color="black")
+#plt.title("Activity of neurons shown as size of dots (with logarithmic scale)")
     
 # test output_layer()
-W = np.ones((4,centers.shape[0],2))
-W[2,:,:] = 2
-R = input_layer(centers,state)
-Q, directions = output_layer(R, W)
+#W = np.ones((4,centers.shape[0],2))
+#W[0,:,:] = 2
+#R = input_layer(centers,state)
+#Q, directions = output_layer(R, W)
 
-position = np.array([55.,0.])
-for i in range(100):
-    position += choose_action(Q, directions, .2)
-    plt.scatter(position[0], position[1])
+#position = np.array([55.,0.])
+#for i in range(20):
+#    position += choose_action(Q, directions, .4)
+#    plt.scatter(position[0], position[1])
+
+
+# implement SARSA
+N_a = 4
+centers = gen_place_centers()
+W = np.random.normal(size=(N_a, centers.shape[0], 2))
+epsilon = 1
+
+for episode in np.arange(10000):
+
+    # initialize s    
+    state_t = [55,0,0]
+    
+    # choose a from s using policy
+    R_t = input_layer(centers, state_t)
+    Q_t, directions = output_layer(R_t, W)
+    a_t, step_t = choose_action(Q_t, directions, epsilon)
+    
+    
+    # repeat (for each step of episode)
+    non_terminal = True
+    steps_needed = 0
+    states = [state_t]
+    while non_terminal:
+        steps_needed += 1
+        # take action a (step), observe state_tp and r
+        print(" action is : " + str(a_t))
+        print(" step is:    " + str(step_t))
+        print(" old state was: " + str(state_t))
+        state_tp, r = update_state(state_t, step_t)
+        print(" new state is: " +str(state_tp))
+        states.append(state_tp)
+        # choose a_tp from state_tp using policy
+        R_tp = input_layer(centers, state_tp)
+        Q_tp, directions = output_layer(R_tp, W)
+        a_tp, step_tp = choose_action(Q_tp, directions, epsilon)
+        
+        if r != 0:
+            print(" reward is: " + str(r))
+            # if the reward was nonzero, a terminal state has 
+            # been reached
+            print("steps needed were: " +str(steps_needed))
+            # set flag to end loop
+            non_terminal = False
+            
+            # update weights according to SARSA
+            W = update_weights(R_t, Q_t[a_t], a_t, r, Q_tp[a_tp], W)
+
+        # set a_tp, step_tp, Q_tp, R_tp to currenct values
+        state_t = state_tp
+        step_t = step_tp
+        Q_t = Q_tp
+        a_t = a_tp
+        R_t = R_tp
+        
+    if r == 20:
+        print("steps needed to reach goal: " + str(steps_needed))
+    
+    if episode > 2:
+        break
+    
+    if episode > 5000:
+        epsilon = 0.001
+    
+    if steps_needed > 1000:
+        break
+            
+#states = np.array(states)
+#plt.plot(centers[:,0],centers[:,1],'ok')
+#plt.plot(states[:,0], states[:,1])
+
+
+
+
+
+
 
 
 
