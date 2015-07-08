@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.linalg import pinv
 
 def gen_place_centers():
     """
@@ -145,7 +146,6 @@ def output_layer(R, W):
     
     # Compute directions
     dirs = 2*np.pi*np.arange(1,N_a+1) / N_a    
-    
     return Q, dirs
 
 
@@ -259,7 +259,7 @@ def update_state(state, step):
         return new_state, 0
 
 def update_weights(R_t, Q_t, action_t, reward, Q_tp,
-                   W, eta=.3, gamma=.95, lambda_=1):
+                   W, eta=.01, gamma=.95, lambda_=1):
     """
     Update weights according to SARSA.
     
@@ -288,11 +288,9 @@ def update_weights(R_t, Q_t, action_t, reward, Q_tp,
                 Decay rate
     """
     delta_Q = eta * (reward + gamma*Q_tp - Q_t)
-    print("delta Q: " + str(delta_Q))
-    delta_W = delta_Q * R_t
-#    print("Biggest change in W is: " + str(np.amax(delta_W)))
-    W[action_t,:,:] = W[action_t,:,:] + delta_W
-    
+    delta_W = delta_Q * pinv(R_t)
+    W[action_t,:,:] = W[action_t,:,:] + delta_W.T
+
     return W
     
     
@@ -329,12 +327,14 @@ def update_weights(R_t, Q_t, action_t, reward, Q_tp,
 N_a = 4
 centers = gen_place_centers()
 W = np.random.normal(size=(N_a, centers.shape[0], 2))
+W = np.zeros((N_a, centers.shape[0], 2))
 epsilon = 1
-
-for episode in np.arange(10000):
+obencounter = 0
+untencounter = 0
+for episode in np.arange(2000):
 
     # initialize s    
-    state_t = [55,0,0]
+    state_t = [55,2,0]
     
     # choose a from s using policy
     R_t = input_layer(centers, state_t)
@@ -346,14 +346,15 @@ for episode in np.arange(10000):
     non_terminal = True
     steps_needed = 0
     states = [state_t]
+
+
+
     while non_terminal:
+        if steps_needed > 10000:
+            print("needed more than 10.000 steps")
+            break
         steps_needed += 1
-        # take action a (step), observe state_tp and r
-        print(" action is : " + str(a_t))
-        print(" step is:    " + str(step_t))
-        print(" old state was: " + str(state_t))
         state_tp, r = update_state(state_t, step_t)
-        print(" new state is: " +str(state_tp))
         states.append(state_tp)
         # choose a_tp from state_tp using policy
         R_tp = input_layer(centers, state_tp)
@@ -361,10 +362,19 @@ for episode in np.arange(10000):
         a_tp, step_tp = choose_action(Q_tp, directions, epsilon)
         
         if r != 0:
-            print(" reward is: " + str(r))
+            if state_tp[1] > 60:
+                obencounter += 1
+            if state_tp[1] < 0:
+                untencounter += 1
+            
+#                print("State that lead to dest is:" +str(state_tp))
+#                print("step was: " +str(step_t))
+#            if a_t == 2:
+#                print("Roarghhh!")
+#            print(" reward is: " + str(r))
             # if the reward was nonzero, a terminal state has 
             # been reached
-            print("steps needed were: " +str(steps_needed))
+#            print("steps needed were: " +str(steps_needed))
             # set flag to end loop
             non_terminal = False
             
@@ -381,18 +391,19 @@ for episode in np.arange(10000):
     if r == 20:
         print("steps needed to reach goal: " + str(steps_needed))
     
-    if episode > 2:
+
+    if steps_needed > 70000:
         break
+
     
-    if episode > 5000:
-        epsilon = 0.001
-    
-    if steps_needed > 1000:
-        break
-            
-#states = np.array(states)
-#plt.plot(centers[:,0],centers[:,1],'ok')
-#plt.plot(states[:,0], states[:,1])
+    epsilon = 1.1**(-episode) + .1
+
+
+# for debugging
+W = W[:,:,0]
+states = np.array(states)
+plt.plot(centers[:,0],centers[:,1],'ok')
+plt.plot(states[:,0], states[:,1])
 
 
 
