@@ -328,13 +328,14 @@ N_a = 4
 centers = gen_place_centers()
 W = np.random.normal(size=(N_a, centers.shape[0], 2))
 W = np.zeros((N_a, centers.shape[0], 2))
+W_before = W.copy()
 epsilon = 1
 obencounter = 0
 untencounter = 0
 for episode in np.arange(2000):
 
     # initialize s    
-    state_t = [55,2,0]
+    state_t = [55,0,0]
     
     # choose a from s using policy
     R_t = input_layer(centers, state_t)
@@ -352,6 +353,10 @@ for episode in np.arange(2000):
     while non_terminal:
         if steps_needed > 10000:
             print("needed more than 10.000 steps")
+            if state_t[2] == 1:
+                print("pickup area had been reached")
+            elif state_t[2] == 0:
+                print("pickup area had not been reached")
             break
         steps_needed += 1
         state_tp, r = update_state(state_t, step_t)
@@ -362,25 +367,17 @@ for episode in np.arange(2000):
         a_tp, step_tp = choose_action(Q_tp, directions, epsilon)
         
         if r != 0:
-            if state_tp[1] > 60:
-                obencounter += 1
-            if state_tp[1] < 0:
-                untencounter += 1
-            
-#                print("State that lead to dest is:" +str(state_tp))
-#                print("step was: " +str(step_t))
-#            if a_t == 2:
-#                print("Roarghhh!")
-#            print(" reward is: " + str(r))
-            # if the reward was nonzero, a terminal state has 
-            # been reached
-#            print("steps needed were: " +str(steps_needed))
             # set flag to end loop
-            non_terminal = False
-            
+            if r == 20:
+                non_terminal = False
             # update weights according to SARSA
             W = update_weights(R_t, Q_t[a_t], a_t, r, Q_tp[a_tp], W)
 
+            # if the animal broke through the wall, set it back
+            # to where it was
+            if r == -1:
+                state_tp = state_t
+            
         # set a_tp, step_tp, Q_tp, R_tp to currenct values
         state_t = state_tp
         step_t = step_tp
@@ -388,19 +385,18 @@ for episode in np.arange(2000):
         a_t = a_tp
         R_t = R_tp
         
-    if r == 20:
+    if r == 20 or steps_needed > 10000:
         print("steps needed to reach goal: " + str(steps_needed))
-    
-
-    if steps_needed > 70000:
-        break
-
+        states = np.array(states)
+        plt.figure()
+        plt.plot(centers[:,0],centers[:,1],'ok')
+        plt.plot(states[:,0], states[:,1])
+        plt.title("Steps to reach goal: " +str(steps_needed))
     
     epsilon = 1.1**(-episode) + .1
 
 
 # for debugging
-W = W[:,:,0]
 states = np.array(states)
 plt.plot(centers[:,0],centers[:,1],'ok')
 plt.plot(states[:,0], states[:,1])
