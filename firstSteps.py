@@ -323,7 +323,7 @@ def update_weights_eligibility(eligibility_history,
     
     for t in np.arange(elig_len-1,-1,-1):       
         e = gammalambda_**(elig_len-t-1)
-        if e < .01:
+        if e < .001:
             break
         eligibility_history_list = eligibility_history[t]
         R_t = eligibility_history_list[0]
