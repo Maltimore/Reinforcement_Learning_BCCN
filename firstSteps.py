@@ -332,7 +332,8 @@ W_before = W.copy()
 epsilon = 1
 obencounter = 0
 untencounter = 0
-for episode in np.arange(2000):
+
+for episode in np.arange(100):
 
     # initialize s    
     state_t = [55,0,0]
@@ -349,7 +350,6 @@ for episode in np.arange(2000):
     states = [state_t]
 
 
-
     while non_terminal:
         if steps_needed > 10000:
             print("needed more than 10.000 steps")
@@ -358,20 +358,25 @@ for episode in np.arange(2000):
             elif state_t[2] == 0:
                 print("pickup area had not been reached")
             break
+        
+        
         steps_needed += 1
         state_tp, r = update_state(state_t, step_t)
         states.append(state_tp)
+
         # choose a_tp from state_tp using policy
         R_tp = input_layer(centers, state_tp)
         Q_tp, directions = output_layer(R_tp, W)
         a_tp, step_tp = choose_action(Q_tp, directions, epsilon)
+
+        # update weights according to SARSA
+        W = update_weights(R_t, Q_t[a_t], a_t, r, Q_tp[a_tp], W)
         
         if r != 0:
             # set flag to end loop
             if r == 20:
                 non_terminal = False
-            # update weights according to SARSA
-            W = update_weights(R_t, Q_t[a_t], a_t, r, Q_tp[a_tp], W)
+
 
             # if the animal broke through the wall, set it back
             # to where it was
@@ -385,7 +390,8 @@ for episode in np.arange(2000):
         a_t = a_tp
         R_t = R_tp
         
-    if r == 20 or steps_needed > 10000:
+    if (r == 20 and episode%5 == 0) or steps_needed > 10000:
+        # every 5th episode, plot
         print("steps needed to reach goal: " + str(steps_needed))
         states = np.array(states)
         plt.figure()
