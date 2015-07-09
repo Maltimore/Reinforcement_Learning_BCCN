@@ -293,37 +293,38 @@ def update_weights(R_t, Q_t, action_t, reward, Q_tp,
 
     return W
     
+def update_weights_eligibility(eligibility_history,
+                               W, eta=.01, gamma=.95, lambda_=.9):
     
-# test in_maze()
-#print("Testing in_maze()")
-#print("The following should be True : " + str(in_maze(50,50)))
-#print("The following should be False: " + str(in_maze(49,49)))
-#print("The following should be True : " + str(in_maze(50,49)))
-#print("The following should be False: " + str(in_maze(50,61)))
-#print("The following should be False: " + str(in_maze(-1,50)))
-#print("The following should be True : " + str(in_maze(55,30)))
-
-# test input_layer()
-#state = [55,55,0]
-#centers = gen_place_centers()
-#R = 1/np.abs(np.log(input_layer(centers, state)[:,0])) * 100
-#plt.scatter(centers[:,0],centers[:,1], s=R, color="blue")
-#plt.scatter(state[0],state[1], s = np.amax(R)/10, color="black")
-#plt.title("Activity of neurons shown as size of dots (with logarithmic scale)")
+    elig_len = len(eligibility_history)
+    delta_W = np.zeros((W.shape[1],W.shape[2]))
+    gammalambda_ = gamma * lambda_ # just to save the computation..
     
-# test output_layer()
-#W = np.ones((4,centers.shape[0],2))
-#W[0,:,:] = 2
-#R = input_layer(centers,state)
-#Q, directions = output_layer(R, W)
-
-#position = np.array([55.,0.])
-#for i in range(20):
-#    position += choose_action(Q, directions, .4)
-#    plt.scatter(position[0], position[1])
-
-
-# implement SARSA
+    for t in np.arange(elig_len-1,-1,-1):
+        
+        e = gammalambda_**(elig_len-t-1)
+        if e < 1:
+            break
+        eligibility_history_list = eligibility_history[t]
+        R_t = eligibility_history_list[0]
+        Q_t = eligibility_history_list[1]
+        print(Q_t)
+        action_t = eligibility_history_list[2]
+        reward = eligibility_history_list[3]
+        Q_tp = eligibility_history_list[4]
+        delta_Q = eta * (reward + gamma*Q_tp - Q_t) * e
+        delta_W += delta_Q * pinv(R_t).T
+    
+    W[action_t,:,:] = W[action_t,:,:] + delta_W
+    
+    # trim eligibility history to those values that are actually
+    # processed (which corresponds to deleting the oldest element)
+    if t > 0:
+        del eligibility_history[0]
+    return W, eligibility_history
+    
+    
+# implement SARSA(lambda)
 N_a = 4
 centers = gen_place_centers()
 W = np.random.normal(size=(N_a, centers.shape[0], 2))
@@ -333,10 +334,11 @@ epsilon = 1
 obencounter = 0
 untencounter = 0
 
-for episode in np.arange(100):
-
+for episode in np.arange(500):
+    
     # initialize s    
     state_t = [55,0,0]
+    eligibility_history = []
     
     # choose a from s using policy
     R_t = input_layer(centers, state_t)
@@ -351,8 +353,8 @@ for episode in np.arange(100):
 
 
     while non_terminal:
-        if steps_needed > 10000:
-            print("needed more than 10.000 steps")
+        if steps_needed > 5000:
+            print("needed more than 5000 steps")
             if state_t[2] == 1:
                 print("pickup area had been reached")
             elif state_t[2] == 0:
@@ -362,16 +364,20 @@ for episode in np.arange(100):
         
         steps_needed += 1
         state_tp, r = update_state(state_t, step_t)
-        states.append(state_tp)
+
 
         # choose a_tp from state_tp using policy
         R_tp = input_layer(centers, state_tp)
         Q_tp, directions = output_layer(R_tp, W)
         a_tp, step_tp = choose_action(Q_tp, directions, epsilon)
 
-        # update weights according to SARSA
-        W = update_weights(R_t, Q_t[a_t], a_t, r, Q_tp[a_tp], W)
-        
+        if r != -1:
+            states.append(state_tp)
+
+        eligibility_history.append([R_t, Q_t[a_t], a_t, r, Q_tp[a_tp]])
+#        W = update_weights(R_t, Q_t[a_t], a_t, r, Q_tp[a_tp], W)
+        W, eligibility_history = update_weights_eligibility(eligibility_history, W)
+
         if r != 0:
             # set flag to end loop
             if r == 20:
@@ -382,6 +388,7 @@ for episode in np.arange(100):
             # to where it was
             if r == -1:
                 state_tp = state_t
+
             
         # set a_tp, step_tp, Q_tp, R_tp to currenct values
         state_t = state_tp
@@ -390,7 +397,10 @@ for episode in np.arange(100):
         a_t = a_tp
         R_t = R_tp
         
-    if (r == 20 and episode%5 == 0) or steps_needed > 10000:
+
+    
+    
+    if r == 20 or steps_needed > 5000:
         # every 5th episode, plot
         print("steps needed to reach goal: " + str(steps_needed))
         states = np.array(states)
@@ -399,14 +409,7 @@ for episode in np.arange(100):
         plt.plot(states[:,0], states[:,1])
         plt.title("Steps to reach goal: " +str(steps_needed))
     
-    epsilon = 1.1**(-episode) + .1
-
-
-# for debugging
-states = np.array(states)
-plt.plot(centers[:,0],centers[:,1],'ok')
-plt.plot(states[:,0], states[:,1])
-
+    epsilon = 1.1**(-episode-1) + .1
 
 
 
