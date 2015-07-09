@@ -149,7 +149,7 @@ def output_layer(R, W):
     return Q, dirs
 
 
-def choose_action(Q, directions, epsilon):
+def choose_action(Q, directions, epsilon, mean=3, sd=1.5):
     """
     Choose an action.
     
@@ -175,11 +175,12 @@ def choose_action(Q, directions, epsilon):
     step:    [int, int]
              The step [x value, y value] that the mouse will take.
     """
-    # set mean and standard deviation values for step
-    mean = 3
-    sd = 1.5
+
     # determine stepsize
-    stepsize = np.random.normal(loc=mean, scale=sd)
+    if sd == 0:
+        stepsize = mean
+    else:
+        stepsize = np.random.normal(loc=mean, scale=sd)
     
     # choose action
     if np.random.uniform() < epsilon:
@@ -259,7 +260,7 @@ def update_state(state, step):
         return new_state, 0
 
 def update_weights(R_t, Q_t, action_t, reward, Q_tp,
-                   W, eta=.01, gamma=.95, lambda_=1):
+                   W, eta=.01, gamma=.95):
     """
     Update weights according to SARSA.
     
@@ -284,8 +285,6 @@ def update_weights(R_t, Q_t, action_t, reward, Q_tp,
                 Learning rate
     gamma:      float
                 Discount factor
-    lambda_:    float
-                Decay rate
     """
     delta_Q = eta * (reward + gamma*Q_tp - Q_t)
     delta_W = delta_Q * pinv(R_t)
@@ -294,28 +293,48 @@ def update_weights(R_t, Q_t, action_t, reward, Q_tp,
     return W
     
 def update_weights_eligibility(eligibility_history,
-                               W, eta=.01, gamma=.95, lambda_=.9):
+                               W, eta=.05, gamma=.95, lambda_=.2):
+    """
+    Update weights according to SARSA(Lambda).
     
+    Update the weights of the neuron from input layer to output layer
+    according to the SARSA(Lambda) rule.
+    
+    Parameters:
+    eligibility_history: list of lists
+                The "higher" dimension holds the history of the chosen
+                actions and states, and every list of the list holds 
+                the five parameters [R_t, Q_t, action_t, reward, Q_tp]
+                (see the "normal" update_weights function).
+    W:          array-like
+                shape: N_output_neurons x N_input_neurons x beta_indices
+                Connectivity matrix, follows format [input_neuron,
+                output_neuron, beta] (corresponds to [a,j,beta] from
+                the problem sheet)
+    eta:        float
+                Learning rate
+    gamma:      float
+                Discount factor
+    lambda_:    float
+                memory discount
+    """    
     elig_len = len(eligibility_history)
-    delta_W = np.zeros((W.shape[1],W.shape[2]))
     gammalambda_ = gamma * lambda_ # just to save the computation..
     
-    for t in np.arange(elig_len-1,-1,-1):
-        
+    for t in np.arange(elig_len-1,-1,-1):       
         e = gammalambda_**(elig_len-t-1)
-        if e < 1:
+        if e < .01:
             break
         eligibility_history_list = eligibility_history[t]
         R_t = eligibility_history_list[0]
         Q_t = eligibility_history_list[1]
-        print(Q_t)
         action_t = eligibility_history_list[2]
         reward = eligibility_history_list[3]
         Q_tp = eligibility_history_list[4]
+        
         delta_Q = eta * (reward + gamma*Q_tp - Q_t) * e
-        delta_W += delta_Q * pinv(R_t).T
-    
-    W[action_t,:,:] = W[action_t,:,:] + delta_W
+        delta_W = delta_Q * pinv(R_t).T
+        W[action_t,:,:] = W[action_t,:,:] + delta_W
     
     # trim eligibility history to those values that are actually
     # processed (which corresponds to deleting the oldest element)
@@ -329,10 +348,8 @@ N_a = 4
 centers = gen_place_centers()
 W = np.random.normal(size=(N_a, centers.shape[0], 2))
 W = np.zeros((N_a, centers.shape[0], 2))
-W_before = W.copy()
 epsilon = 1
-obencounter = 0
-untencounter = 0
+
 
 for episode in np.arange(500):
     
@@ -396,7 +413,7 @@ for episode in np.arange(500):
         Q_t = Q_tp
         a_t = a_tp
         R_t = R_tp
-        
+        W_old = W
 
     
     
@@ -408,13 +425,26 @@ for episode in np.arange(500):
         plt.plot(centers[:,0],centers[:,1],'ok')
         plt.plot(states[:,0], states[:,1])
         plt.title("Steps to reach goal: " +str(steps_needed))
+        if steps_needed > 5000:
+            break
     
-    epsilon = 1.1**(-episode-1) + .1
+    if steps_needed < 100:
+        break
+    
+    epsilon = 1.2**(-episode-1) + .1
 
 
 
 
 
-
-
-
+# vector field
+arrowvec = np.zeros(centers.shape)
+for idx, coordinate in enumerate(centers):
+    alpha = 0
+    state = np.array([coordinate[0], coordinate[1], alpha])
+    R = input_layer(centers, state)
+    Q, direction = output_layer(R, W)
+    _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
+plt.figure()
+plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
+plt.title("Arrows represent choices for greedy policy and alpha = 0")
