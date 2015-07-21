@@ -52,6 +52,10 @@ def in_maze(x, y):
         return False
 
 
+#def newfun(state1, state2):
+    
+
+
 def in_pickup(x, y):
     """Returns True if given coordinates are inside the pickup area"""
     if x>=90 and x<=110 and y>=50 and y<=60:
@@ -261,7 +265,7 @@ def update_state(state, step):
 
     
 def update_weights_eligibility(eligibility_history,
-                               W, eta=.05, gamma=.95, lambda_=.7):
+                               W, eta=.01, gamma=.95, lambda_=.70):
     """
     Update weights according to SARSA(Lambda).
     
@@ -288,9 +292,9 @@ def update_weights_eligibility(eligibility_history,
     """    
     elig_len = len(eligibility_history)
     gammalambda_ = gamma * lambda_ # just to save the computation..
-    
+
     for t in np.arange(elig_len-1,-1,-1):       
-        e = gammalambda_**(elig_len-t-1)
+        e = gammalambda_**(elig_len - t - 1)
         if e < .01:
             break
         eligibility_history_list = eligibility_history[t]
@@ -318,6 +322,7 @@ centers = gen_place_centers()
 W = np.random.normal(size=(N_a, centers.shape[0], 2))
 W = np.zeros((N_a, centers.shape[0], 2))
 epsilon = 1
+break_after_steps = 70
 
 
 for episode in np.arange(500):
@@ -338,24 +343,28 @@ for episode in np.arange(500):
     # repeat (steps of the episode)
     while non_terminal:
 
-        if steps_needed >= 5000:
-            # if more than 5000 steps were needed, break (because the mouse
+        if steps_needed >= break_after_steps:
+            # if more than break_after_steps steps were needed, break (because the mouse
             # most likely got stuck)
-            print("needed more than 5000 steps")
+            print("needed more than break_after_steps steps")
             break
         
         steps_needed += 1
         state_t1, r = update_state(state_t, step_t)
+
+        if r == 20:
+            # if the labyrinth was successfully completed, set flag to end loop
+            non_terminal = False
 
         # choose a_t1 from state_t1 using policy
         R_t1 = input_layer(centers, state_t1)
         Q_t1, directions = output_layer(R_t1, W)
         a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
 
-        if r != -1:
+        if r == 0:
             states.append(state_t1)
             eligibility_history.append([R_t, Q_t[a_t], a_t, r, Q_t1[a_t1]])
-        elif r == -1:
+        elif r == -1 or r == 20:
             # if the reward was -1, the mouse crashed into the wall. In this
             # case, Q_t1 is zero. Also, do not append the state to the history
             # of states (needed for plotting later)
@@ -366,11 +375,6 @@ for episode in np.arange(500):
         # the eligibility history is "trimmed" to a useful length (see docstring
         # of the function)
         W, eligibility_history = update_weights_eligibility(eligibility_history, W)
-
-        if r == 20:
-            # if the labyrinth was successfully completed, set flag to end loop
-            non_terminal = False
-
 
         if r == -1:
             # if the animal broke through the wall, set it back
@@ -388,21 +392,21 @@ for episode in np.arange(500):
         a_t = a_t1
         R_t = R_t1
             
-    if r == 20 or steps_needed >= 5000:
+    if r == 20 or steps_needed >= break_after_steps:
         print("steps needed: " + str(steps_needed))
-        states = np.array(states)
+        states = np.array(states[-32:])
         plt.figure()
         plt.plot(centers[:,0],centers[:,1],'ok')
         plt.plot(states[:,0], states[:,1])
         plt.title("Steps: " +str(steps_needed))
-        if steps_needed > 5000:
+        if steps_needed > break_after_steps:
             break
     
-    if steps_needed < 60:
+    if steps_needed < 500:
         # if there was an episode where just 60 steps were needed, stop
         break
     
-    epsilon = 1.2**(-episode-1) + .1
+    epsilon = 1.4**(-episode-1) + .1
 
 
 
@@ -419,3 +423,13 @@ for idx, coordinate in enumerate(centers):
 plt.figure()
 plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
 plt.title("Arrows represent choices for greedy policy and alpha = 0")
+
+
+
+
+
+
+
+
+
+
