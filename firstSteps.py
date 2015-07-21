@@ -371,21 +371,23 @@ for episode in np.arange(500):
             # if the labyrinth was successfully completed, set flag to end loop
             non_terminal = False
 
-        # if the animal broke through the wall, set it back
-        # to where it was
+
         if r == -1:
+            # if the animal broke through the wall, set it back
+            # to where it was
             state_t1 = state_t
-          
+            # choose a new step
+            R_t1 = input_layer(centers, state_t1)
+            Q_t1, directions = output_layer(R_t1, W)
+            a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
+            
         # set a_t1, step_t1, Q_t1, R_t1 to currenct values
         state_t = state_t1
         step_t = step_t1
         Q_t = Q_t1
         a_t = a_t1
         R_t = R_t1
-        W_old = W
-
-    
-    
+            
     if r == 20 or steps_needed >= 5000:
         print("steps needed: " + str(steps_needed))
         states = np.array(states)
@@ -398,7 +400,6 @@ for episode in np.arange(500):
     
     if steps_needed < 60:
         # if there was an episode where just 60 steps were needed, stop
-        #         
         break
     
     epsilon = 1.2**(-episode-1) + .1
