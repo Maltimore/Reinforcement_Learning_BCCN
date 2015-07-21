@@ -259,41 +259,9 @@ def update_state(state, step):
         # return 0 reward
         return new_state, 0
 
-def update_weights(R_t, Q_t, action_t, reward, Q_tp,
-                   W, eta=.01, gamma=.95):
-    """
-    Update weights according to SARSA.
-    
-    Update the weights of the neuron from input layer to output layer
-    according to the SARSA rule.
-    
-    Parameters:
-    R_t:        activity of inputs
-    Q_t:        Q value of state_t, action_t pair
-    action_t:   int
-                action taken at timestep t
-    reward:     int
-                reward received after choosing action_t at timestep
-                t and being in state_t
-    Q_tp:       Q value of state_tp, action_tp pair
-    W:          array-like
-                shape: N_output_neurons x N_input_neurons x beta_indices
-                Connectivity matrix, follows format [input_neuron,
-                output_neuron, beta] (corresponds to [a,j,beta] from
-                the problem sheet)
-    eta:        float
-                Learning rate
-    gamma:      float
-                Discount factor
-    """
-    delta_Q = eta * (reward + gamma*Q_tp - Q_t)
-    delta_W = delta_Q * pinv(R_t)
-    W[action_t,:,:] = W[action_t,:,:] + delta_W.T
-
-    return W
     
 def update_weights_eligibility(eligibility_history,
-                               W, eta=.05, gamma=.95, lambda_=.2):
+                               W, eta=.05, gamma=.95, lambda_=.7):
     """
     Update weights according to SARSA(Lambda).
     
@@ -304,18 +272,18 @@ def update_weights_eligibility(eligibility_history,
     eligibility_history: list of lists
                 The "higher" dimension holds the history of the chosen
                 actions and states, and every list of the list holds 
-                the five parameters [R_t, Q_t, action_t, reward, Q_tp]
+                the five parameters [R_t, Q_t, action_t, reward, Q_t1]
                 (see the "normal" update_weights function).
     W:          array-like
                 shape: N_output_neurons x N_input_neurons x beta_indices
                 Connectivity matrix, follows format [input_neuron,
                 output_neuron, beta] (corresponds to [a,j,beta] from
                 the problem sheet)
-    eta:        float
+    eta:        float, optional
                 Learning rate
-    gamma:      float
+    gamma:      float, optional
                 Discount factor
-    lambda_:    float
+    lambda_:    float, optional
                 memory discount
     """    
     elig_len = len(eligibility_history)
@@ -323,16 +291,16 @@ def update_weights_eligibility(eligibility_history,
     
     for t in np.arange(elig_len-1,-1,-1):       
         e = gammalambda_**(elig_len-t-1)
-        if e < .001:
+        if e < .01:
             break
         eligibility_history_list = eligibility_history[t]
         R_t = eligibility_history_list[0]
         Q_t = eligibility_history_list[1]
         action_t = eligibility_history_list[2]
         reward = eligibility_history_list[3]
-        Q_tp = eligibility_history_list[4]
+        Q_t1 = eligibility_history_list[4]
         
-        delta_Q = eta * (reward + gamma*Q_tp - Q_t) * e
+        delta_Q = eta * (reward + gamma*Q_t1 - Q_t) * e
         delta_W = delta_Q * pinv(R_t).T
         W[action_t,:,:] = W[action_t,:,:] + delta_W
     
@@ -340,10 +308,11 @@ def update_weights_eligibility(eligibility_history,
     # processed (which corresponds to deleting the oldest element)
     if t > 0:
         del eligibility_history[0]
+        
     return W, eligibility_history
     
     
-# implement SARSA(lambda)
+
 N_a = 4
 centers = gen_place_centers()
 W = np.random.normal(size=(N_a, centers.shape[0], 2))
@@ -352,83 +321,84 @@ epsilon = 1
 
 
 for episode in np.arange(500):
-    
+
     # initialize s    
     state_t = [55,0,0]
     eligibility_history = []
-    
+    # initialize variables
+    non_terminal = True
+    steps_needed = 0
+    states = [state_t]    
+
     # choose a from s using policy
     R_t = input_layer(centers, state_t)
     Q_t, directions = output_layer(R_t, W)
     a_t, step_t = choose_action(Q_t, directions, epsilon)
-    
-    
-    # repeat (for each step of episode)
-    non_terminal = True
-    steps_needed = 0
-    states = [state_t]
 
-
+    # repeat (steps of the episode)
     while non_terminal:
-        if steps_needed > 5000:
+
+        if steps_needed >= 5000:
+            # if more than 5000 steps were needed, break (because the mouse
+            # most likely got stuck)
             print("needed more than 5000 steps")
-            if state_t[2] == 1:
-                print("pickup area had been reached")
-            elif state_t[2] == 0:
-                print("pickup area had not been reached")
             break
         
-        
         steps_needed += 1
-        state_tp, r = update_state(state_t, step_t)
+        state_t1, r = update_state(state_t, step_t)
 
-
-        # choose a_tp from state_tp using policy
-        R_tp = input_layer(centers, state_tp)
-        Q_tp, directions = output_layer(R_tp, W)
-        a_tp, step_tp = choose_action(Q_tp, directions, epsilon)
+        # choose a_t1 from state_t1 using policy
+        R_t1 = input_layer(centers, state_t1)
+        Q_t1, directions = output_layer(R_t1, W)
+        a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
 
         if r != -1:
-            states.append(state_tp)
+            states.append(state_t1)
+            eligibility_history.append([R_t, Q_t[a_t], a_t, r, Q_t1[a_t1]])
+        elif r == -1:
+            # if the reward was -1, the mouse crashed into the wall. In this
+            # case, Q_t1 is zero. Also, do not append the state to the history
+            # of states (needed for plotting later)
+            eligibility_history.append([R_t, Q_t[a_t], a_t, r, 0])
 
-        eligibility_history.append([R_t, Q_t[a_t], a_t, r, Q_tp[a_tp]])
-#        W = update_weights(R_t, Q_t[a_t], a_t, r, Q_tp[a_tp], W)
+        # it seems weird that update_weight_eligibility returns the eligibility
+        # history (although it gets it as an argument), but that is because
+        # the eligibility history is "trimmed" to a useful length (see docstring
+        # of the function)
         W, eligibility_history = update_weights_eligibility(eligibility_history, W)
 
-        if r != 0:
-            # set flag to end loop
-            if r == 20:
-                non_terminal = False
+        if r == 20:
+            # if the labyrinth was successfully completed, set flag to end loop
+            non_terminal = False
 
-
-            # if the animal broke through the wall, set it back
-            # to where it was
-            if r == -1:
-                state_tp = state_t
-
-            
-        # set a_tp, step_tp, Q_tp, R_tp to currenct values
-        state_t = state_tp
-        step_t = step_tp
-        Q_t = Q_tp
-        a_t = a_tp
-        R_t = R_tp
+        # if the animal broke through the wall, set it back
+        # to where it was
+        if r == -1:
+            state_t1 = state_t
+          
+        # set a_t1, step_t1, Q_t1, R_t1 to currenct values
+        state_t = state_t1
+        step_t = step_t1
+        Q_t = Q_t1
+        a_t = a_t1
+        R_t = R_t1
         W_old = W
 
     
     
-    if r == 20 or steps_needed > 5000:
-        # every 5th episode, plot
-        print("steps needed to reach goal: " + str(steps_needed))
+    if r == 20 or steps_needed >= 5000:
+        print("steps needed: " + str(steps_needed))
         states = np.array(states)
         plt.figure()
         plt.plot(centers[:,0],centers[:,1],'ok')
         plt.plot(states[:,0], states[:,1])
-        plt.title("Steps to reach goal: " +str(steps_needed))
+        plt.title("Steps: " +str(steps_needed))
         if steps_needed > 5000:
             break
     
-    if steps_needed < 100:
+    if steps_needed < 60:
+        # if there was an episode where just 60 steps were needed, stop
+        #         
         break
     
     epsilon = 1.2**(-episode-1) + .1
