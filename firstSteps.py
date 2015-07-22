@@ -101,11 +101,11 @@ def input_layer(centers, state):
     y = state[1]
     alpha = state[2]
     R = np.zeros((centers.shape[0],2))
-    if alpha == 0:
+    if int(alpha) == 0:
         R[:,0] = np.exp(- ((centers[:,0] - x)**2 + (centers[:,1] - y)**2)
                         / (2 * sigma**2))
         R[:,1] = 0
-    elif alpha == 1:
+    elif int(alpha) == 1:
         R[:,0] = 0 
         R[:,1] = np.exp(- ((centers[:,0] - x)**2 + (centers[:,1] - y)**2)
                         / (2 * sigma**2))
@@ -208,7 +208,7 @@ def get_reward(state):
     y = state[1]
     alpha = state[2]
     
-    if in_target(x, y) and alpha == 1:
+    if in_target(x, y) and int(alpha) == 1:
         return 20
     elif not in_maze(x, y):
         return -1
@@ -247,12 +247,12 @@ def update_state(state, step):
     new_state = [x, y, alpha]
     
     # update alpha if necessary
-    if alpha == 0:
+    if int(alpha) == 0:
         if in_pickup(x, y):
             new_state[2] = 1
     
     # check if final goal is reached
-    if alpha == 1 and in_target(x, y):
+    if int(alpha) == 1 and in_target(x, y):
         return new_state, 20
     
     # check if the rat ran into a wall
@@ -314,15 +314,71 @@ def update_weights_eligibility(eligibility_history,
         del eligibility_history[0]
         
     return W, eligibility_history
+
+def reset_mouse(old_state, new_state):    
+    def is_between(a, b, c):
+        return (np.isclose((b[0] - a[0]) * (c[1] - a[1]), (c[0] - a[0]) * (b[1] - a[1])) and
+            (((a[0] <= c[0]) and (b[0] >= c[0])) or ((a[0] >= c[0]) and (b[0] <= c[0]))) and
+            (((a[1] <= c[1]) and (b[1] >= c[1])) or ((a[1] >= c[1]) and (b[1] <= c[1]))))
     
-    
+    def intersection(q0, q1, p0, p1):
+        dy = q0[1] - p0[1]
+        dx = q0[0] - p0[0]
+        lhs0 = [-dy, dx]
+        rhs0 = p0[1] * dx - dy * p0[0]
+        
+        dy = q1[1] - p1[1]
+        dx = q1[0] - p1[0]
+        lhs1 = [-dy, dx]
+        rhs1 = p1[1] * dx - dy * p1[0]
+        
+        a = np.array([lhs0, 
+                      lhs1])
+        
+        b = np.array([rhs0, 
+                      rhs1])
+        try:
+            px = np.linalg.solve(a, b)
+        except:
+            px = np.array([np.nan, np.nan])
+        return px
+    old_pos = old_state[:2]
+    new_pos = new_state[:2]
+
+    startpoints = np.array([[0, 60],
+                            [0, 50],
+                            [60, 50],
+                            [50, 0],
+                            [0, 50],
+                            [50, 0],
+                            [60, 0],
+                            [110, 50]])
+    endpoints = np.array([[110, 60],
+                          [50, 50],
+                          [110, 50],
+                          [60, 0],
+                          [0, 60],
+                          [50, 50],
+                          [60, 50],
+                          [110, 60]])
+    for i in np.arange(8):   
+        px = intersection(startpoints[i,:], old_pos, endpoints[i,:], new_pos)
+        if is_between(startpoints[i,:], endpoints[i,:], px) and \
+           is_between(old_pos, new_pos, px):
+            print("The line sected is number " + str(i))
+            reset_to = px + .1 * (old_pos - px)
+            print(np.hstack((reset_to, old_state[2])))
+            return np.hstack((reset_to, old_state[2]))
+    print("no line was sected apparently")
+    print(old_pos)
+    print(new_pos)
 
 N_a = 4
 centers = gen_place_centers()
 W = np.random.normal(size=(N_a, centers.shape[0], 2))
 W = np.zeros((N_a, centers.shape[0], 2))
 epsilon = 1
-break_after_steps = 70
+break_after_steps = 499
 
 
 for episode in np.arange(500):
@@ -351,39 +407,46 @@ for episode in np.arange(500):
         
         steps_needed += 1
         state_t1, r = update_state(state_t, step_t)
-
-        if r == 20:
-            # if the labyrinth was successfully completed, set flag to end loop
-            non_terminal = False
+           
 
         # choose a_t1 from state_t1 using policy
         R_t1 = input_layer(centers, state_t1)
         Q_t1, directions = output_layer(R_t1, W)
         a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
 
-        if r == 0:
-            states.append(state_t1)
-            eligibility_history.append([R_t, Q_t[a_t], a_t, r, Q_t1[a_t1]])
-        elif r == -1 or r == 20:
+
+        # Distinguish the three cases of reward (-1, 0 and 20)
+        if r == -1 :
             # if the reward was -1, the mouse crashed into the wall. In this
             # case, Q_t1 is zero. Also, do not append the state to the history
             # of states (needed for plotting later)
             eligibility_history.append([R_t, Q_t[a_t], a_t, r, 0])
+            ###################################################################
+            # Reset mouse
+            state_t1 = reset_mouse(state_t, state_t1)
+            print(state_t1)
+            # choose a new step
+            R_t1 = input_layer(centers, state_t1)
+            Q_t1, directions = output_layer(R_t1, W)
+            a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
+        elif r == 0:
+            states.append(state_t1)
+            eligibility_history.append([R_t, Q_t[a_t], a_t, r, Q_t1[a_t1]])
+        elif r == 20:
+            # In the case that the reward is 20, the trial is over and Q_t1 is
+            # therefore zero. Also set the flag to end the loop.
+            states.append(state_t1)
+            eligibility_history.append([R_t, Q_t[a_t], a_t, r, 0])
+            non_terminal = False
+        
 
         # it seems weird that update_weight_eligibility returns the eligibility
         # history (although it gets it as an argument), but that is because
         # the eligibility history is "trimmed" to a useful length (see docstring
         # of the function)
-        W, eligibility_history = update_weights_eligibility(eligibility_history, W)
+        W, eligibility_history = update_weights_eligibility(eligibility_history, W)       
 
-        if r == -1:
-            # if the animal broke through the wall, set it back
-            # to where it was
-            state_t1 = state_t
-            # choose a new step
-            R_t1 = input_layer(centers, state_t1)
-            Q_t1, directions = output_layer(R_t1, W)
-            a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
+
             
         # set a_t1, step_t1, Q_t1, R_t1 to currenct values
         state_t = state_t1

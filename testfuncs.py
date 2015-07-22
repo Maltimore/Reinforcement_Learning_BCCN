@@ -14,8 +14,9 @@ def is_between(a, b, c):
 
 
 # initialize values
-q0 = [105, 65]
-q1 = [40, 30]
+q0 = [50.133629557470982, 3.1240315663402529]
+q1 = [45.632582188115137, 3.1240315663402534]
+
 
 def intersection(q0, q1, p0, p1):
     dy = q0[1] - p0[1]
@@ -57,6 +58,7 @@ endpoints = np.array([[110, 60],
                       [110, 60]])
 for i in np.arange(8):
     plt.plot([startpoints[i,0], endpoints[i,0]],[startpoints[i,1], endpoints[i,1]], label="nr " + str(i))
+
     px = intersection(startpoints[i,:], q0, endpoints[i,:], q1)
     if is_between(startpoints[i,:], endpoints[i,:], px) and is_between(q0, q1, px):
         print("The line sected is number " + str(i))
