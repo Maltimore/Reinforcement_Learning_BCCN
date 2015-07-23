@@ -317,6 +317,9 @@ def update_weights_eligibility(eligibility_history,
 
 def reset_mouse(old_state, new_state):    
     def is_between(a, b, c):
+        a[0], a[1] = round(a[0], 3), round(a[1], 3)
+        b[0], b[1] = round(b[0], 3), round(b[1], 3)
+        c[0], c[1] = round(c[0], 3), round(c[1], 3)
         return (np.isclose((b[0] - a[0]) * (c[1] - a[1]), (c[0] - a[0]) * (b[1] - a[1])) and
             (((a[0] <= c[0]) and (b[0] >= c[0])) or ((a[0] >= c[0]) and (b[0] <= c[0]))) and
             (((a[1] <= c[1]) and (b[1] >= c[1])) or ((a[1] >= c[1]) and (b[1] <= c[1]))))
@@ -378,7 +381,7 @@ centers = gen_place_centers()
 W = np.random.normal(size=(N_a, centers.shape[0], 2))
 W = np.zeros((N_a, centers.shape[0], 2))
 epsilon = 1
-break_after_steps = 499
+break_after_steps = 30
 
 
 for episode in np.arange(500):
@@ -390,6 +393,7 @@ for episode in np.arange(500):
     non_terminal = True
     steps_needed = 0
     states = [state_t]    
+    bumps = []
 
     # choose a from s using policy
     R_t = input_layer(centers, state_t)
@@ -421,6 +425,7 @@ for episode in np.arange(500):
             # case, Q_t1 is zero. Also, do not append the state to the history
             # of states (needed for plotting later)
             eligibility_history.append([R_t, Q_t[a_t], a_t, r, 0])
+            bumps.append(state_t1)
             ###################################################################
             # Reset mouse
             state_t1 = reset_mouse(state_t, state_t1)
@@ -462,6 +467,8 @@ for episode in np.arange(500):
         plt.plot(centers[:,0],centers[:,1],'ok')
         plt.plot(states[:,0], states[:,1])
         plt.title("Steps: " +str(steps_needed))
+        for bump in bumps:
+            plt.scatter(bump[0], bump[1], s = 100)
         if steps_needed > break_after_steps:
             break
     
