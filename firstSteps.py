@@ -300,15 +300,16 @@ def update_weights_eligibility(eligibility_history,
         eligibility_history_list = eligibility_history[t]
         R_t = eligibility_history_list[0]
         Q_t = eligibility_history_list[1]
-        action_t = eligibility_history_list[2]
+        a_t = eligibility_history_list[2]
         reward = eligibility_history_list[3]
         Q_t1 = eligibility_history_list[4]
-        
-        delta_Q = eta * (reward + gamma*Q_t1 - Q_t) * e
+        E = eligibility_history_list[5]
+        delta_Q = eta * (reward + gamma*Q_t1 - Q_t)
 #        delta_W = delta_Q * pinv(R_t).T
-        E = e * R_t
-        delta_W = delta_Q * E        
-        W[action_t,:,:] = W[action_t,:,:] + delta_W
+        delta_W = delta_Q * E[a_t,:,:]        
+        W[a_t,:,:] = W[a_t,:,:] + delta_W
+        E *= gammalambda_
+        eligibility_history[t][5] = E
     
     # trim eligibility history to those values that are actually
     # processed (which corresponds to deleting the oldest element)
@@ -380,11 +381,13 @@ def reset_mouse(old_state, new_state):
     print(px)
     print(old_pos)
     print(new_pos)
+    return old_state, np.array([0,0])
 
 N_a = 4
 centers = gen_place_centers()
 W = np.random.normal(size=(N_a, centers.shape[0], 2))
 W = np.zeros((N_a, centers.shape[0], 2))
+E = np.zeros(W.shape)
 epsilon = 1
 break_after_steps = 5000
 
@@ -399,12 +402,14 @@ for episode in np.arange(500):
     steps_needed = 0
     states = [state_t]    
     bumps = []
+    E = np.zeros(W.shape)
 
     # choose a from s using policy
     R_t = input_layer(centers, state_t)
     Q_t, directions = output_layer(R_t, W)
     a_t, step_t = choose_action(Q_t, directions, epsilon)
-
+    E[a_t, :, :] += R_t
+    
     # repeat (steps of the episode)
     while non_terminal:
 
@@ -429,7 +434,7 @@ for episode in np.arange(500):
             # if the reward was -1, the mouse crashed into the wall. In this
             # case, Q_t1 is zero. Also, do not append the state to the history
             # of states (needed for plotting later)
-            eligibility_history.append([R_t, Q_t[a_t], a_t, r, 0])
+            eligibility_history.append([R_t, Q_t[a_t], a_t, r, 0, E])
             
             ###################################################################
             # Reset mouse
@@ -441,21 +446,23 @@ for episode in np.arange(500):
             a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
         elif r == 0:
             states.append(state_t1)
-            eligibility_history.append([R_t, Q_t[a_t], a_t, r, Q_t1[a_t1]])
+            eligibility_history.append([R_t, Q_t[a_t], a_t, r, Q_t1[a_t1], E])
         elif r == 20:
             # In the case that the reward is 20, the trial is over and Q_t1 is
             # therefore zero. Also set the flag to end the loop.
             states.append(state_t1)
-            eligibility_history.append([R_t, Q_t[a_t], a_t, r, 0])
+            eligibility_history.append([R_t, Q_t[a_t], a_t, r, 0, E])
             non_terminal = False
         
+
 
         # it seems weird that update_weight_eligibility returns the eligibility
         # history (although it gets it as an argument), but that is because
         # the eligibility history is "trimmed" to a useful length (see docstring
         # of the function)
         W, eligibility_history = update_weights_eligibility(eligibility_history, W)       
-
+        # get E out of eligibility_history
+        E = eligibility_history[-1][5]
 
             
         # set a_t1, step_t1, Q_t1, R_t1 to currenct values
@@ -464,10 +471,11 @@ for episode in np.arange(500):
         Q_t = Q_t1
         a_t = a_t1
         R_t = R_t1
+        eligibility_history[-1][5][a_t,:,:] += R_t
             
     if r == 20 or steps_needed >= break_after_steps:
         print("steps needed: " + str(steps_needed))
-        states = np.array(states[-32:])
+        states = np.array(states)
         plt.figure()
         plt.plot(centers[:,0],centers[:,1],'ok')
         plt.plot(states[:,0], states[:,1])
