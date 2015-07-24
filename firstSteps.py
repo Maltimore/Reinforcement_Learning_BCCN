@@ -295,8 +295,9 @@ def update_weights_eligibility(eligibility_history,
 
     for t in np.arange(elig_len-1,-1,-1):       
         e = gammalambda_**(elig_len - t - 1)
-        if e < .01:
+        if e < .001:
             break
+        # getting values out of the list
         eligibility_history_list = eligibility_history[t]
         R_t = eligibility_history_list[0]
         Q_t = eligibility_history_list[1]
@@ -304,8 +305,8 @@ def update_weights_eligibility(eligibility_history,
         reward = eligibility_history_list[3]
         Q_t1 = eligibility_history_list[4]
         E = eligibility_history_list[5]
+
         delta_Q = eta * (reward + gamma*Q_t1 - Q_t)
-#        delta_W = delta_Q * pinv(R_t).T
         delta_W = delta_Q * E[a_t,:,:]        
         W[a_t,:,:] = W[a_t,:,:] + delta_W
         E *= gammalambda_
@@ -389,7 +390,7 @@ W = np.random.normal(size=(N_a, centers.shape[0], 2))
 W = np.zeros((N_a, centers.shape[0], 2))
 E = np.zeros(W.shape)
 epsilon = 1
-break_after_steps = 5000
+break_after_steps = 10000
 
 
 for episode in np.arange(500):
@@ -416,7 +417,6 @@ for episode in np.arange(500):
         if steps_needed >= break_after_steps:
             # if more than break_after_steps steps were needed, break (because the mouse
             # most likely got stuck)
-            print("needed more than " + str(break_after_steps) + " steps")
             break
         
         steps_needed += 1
@@ -471,7 +471,8 @@ for episode in np.arange(500):
         Q_t = Q_t1
         a_t = a_t1
         R_t = R_t1
-        eligibility_history[-1][5][a_t,:,:] += R_t
+        E[a_t,:,:] += R_t
+        eligibility_history[-1][5] = E
             
     if r == 20 or steps_needed >= break_after_steps:
         print("steps needed: " + str(steps_needed))
@@ -485,7 +486,7 @@ for episode in np.arange(500):
         if steps_needed > break_after_steps:
             break
     
-    if steps_needed < 50:
+    if steps_needed < 50 or steps_needed >= 10000:
         # if there was an episode where just 60 steps were needed, stop
         break
     
