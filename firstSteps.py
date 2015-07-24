@@ -265,7 +265,7 @@ def update_state(state, step):
 
     
 def update_weights_eligibility(eligibility_history,
-                               W, eta=.01, gamma=.95, lambda_=.70):
+                               W, eta=.01, gamma=.95, lambda_=.95):
     """
     Update weights according to SARSA(Lambda).
     
@@ -305,7 +305,9 @@ def update_weights_eligibility(eligibility_history,
         Q_t1 = eligibility_history_list[4]
         
         delta_Q = eta * (reward + gamma*Q_t1 - Q_t) * e
-        delta_W = delta_Q * pinv(R_t).T
+#        delta_W = delta_Q * pinv(R_t).T
+        E = e * R_t
+        delta_W = delta_Q * E        
         W[action_t,:,:] = W[action_t,:,:] + delta_W
     
     # trim eligibility history to those values that are actually
@@ -320,7 +322,7 @@ def reset_mouse(old_state, new_state):
         a[0], a[1] = round(a[0], 3), round(a[1], 3)
         b[0], b[1] = round(b[0], 3), round(b[1], 3)
         c[0], c[1] = round(c[0], 3), round(c[1], 3)
-        return (np.isclose((b[0] - a[0]) * (c[1] - a[1]), (c[0] - a[0]) * (b[1] - a[1])) and
+        return (np.isclose((b[0] - a[0]) * (c[1] - a[1]), (c[0] - a[0]) * (b[1] - a[1]), .001, .001) and
             (((a[0] <= c[0]) and (b[0] >= c[0])) or ((a[0] >= c[0]) and (b[0] <= c[0]))) and
             (((a[1] <= c[1]) and (b[1] >= c[1])) or ((a[1] >= c[1]) and (b[1] <= c[1]))))
     
@@ -345,6 +347,8 @@ def reset_mouse(old_state, new_state):
         except:
             px = np.array([np.nan, np.nan])
         return px
+    old_state = np.asarray(old_state)
+    new_state = np.asarray(new_state)
     old_pos = old_state[:2]
     new_pos = new_state[:2]
 
@@ -368,11 +372,12 @@ def reset_mouse(old_state, new_state):
         px = intersection(startpoints[i,:], old_pos, endpoints[i,:], new_pos)
         if is_between(startpoints[i,:], endpoints[i,:], px) and \
            is_between(old_pos, new_pos, px):
-            print("The line sected is number " + str(i))
             reset_to = px + .1 * (old_pos - px)
-            print(np.hstack((reset_to, old_state[2])))
-            return np.hstack((reset_to, old_state[2]))
+            return np.hstack((reset_to, old_state[2])), px
     print("no line was sected apparently")
+    print(type(old_state))
+    print(type(new_state))
+    print(px)
     print(old_pos)
     print(new_pos)
 
@@ -381,7 +386,7 @@ centers = gen_place_centers()
 W = np.random.normal(size=(N_a, centers.shape[0], 2))
 W = np.zeros((N_a, centers.shape[0], 2))
 epsilon = 1
-break_after_steps = 30
+break_after_steps = 5000
 
 
 for episode in np.arange(500):
@@ -406,7 +411,7 @@ for episode in np.arange(500):
         if steps_needed >= break_after_steps:
             # if more than break_after_steps steps were needed, break (because the mouse
             # most likely got stuck)
-            print("needed more than break_after_steps steps")
+            print("needed more than " + str(break_after_steps) + " steps")
             break
         
         steps_needed += 1
@@ -425,11 +430,11 @@ for episode in np.arange(500):
             # case, Q_t1 is zero. Also, do not append the state to the history
             # of states (needed for plotting later)
             eligibility_history.append([R_t, Q_t[a_t], a_t, r, 0])
-            bumps.append(state_t1)
+            
             ###################################################################
             # Reset mouse
-            state_t1 = reset_mouse(state_t, state_t1)
-            print(state_t1)
+            state_t1, bump = reset_mouse(state_t, state_t1)
+            bumps.append(bump)            
             # choose a new step
             R_t1 = input_layer(centers, state_t1)
             Q_t1, directions = output_layer(R_t1, W)
@@ -472,7 +477,7 @@ for episode in np.arange(500):
         if steps_needed > break_after_steps:
             break
     
-    if steps_needed < 500:
+    if steps_needed < 50:
         # if there was an episode where just 60 steps were needed, stop
         break
     

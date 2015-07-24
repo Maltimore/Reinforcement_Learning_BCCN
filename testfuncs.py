@@ -7,13 +7,16 @@ def is_between(a, b, c):
     a[0], a[1] = round(a[0], 3), round(a[1], 3)
     b[0], b[1] = round(b[0], 3), round(b[1], 3)
     c[0], c[1] = round(c[0], 3), round(c[1], 3)
+    print("the three dots given to is_between are: ")    
     print(a)
     print(b)
     print(c)
+    print((b[0] - a[0]) * (c[1] - a[1]))
+    print((c[0] - a[0]) * (b[1] - a[1]))
     print((np.isclose((b[0] - a[0]) * (c[1] - a[1]), (c[0] - a[0]) * (b[1] - a[1]))), \
           (((a[0] <= c[0]) and (b[0] >= c[0])) or ((a[0] >= c[0]) and (b[0] <= c[0]))), \
           (((a[1] <= c[1]) and (b[1] >= c[1])) or ((a[1] >= c[1]) and (b[1] <= c[1]))))
-    return (np.isclose((b[0] - a[0]) * (c[1] - a[1]), (c[0] - a[0]) * (b[1] - a[1])) and
+    return (np.isclose((b[0] - a[0]) * (c[1] - a[1]), (c[0] - a[0]) * (b[1] - a[1]), .001, .001) and
         (((a[0] <= c[0]) and (b[0] >= c[0])) or ((a[0] >= c[0]) and (b[0] <= c[0]))) and
         (((a[1] <= c[1]) and (b[1] >= c[1])) or ((a[1] >= c[1]) and (b[1] <= c[1]))))
 
@@ -23,9 +26,8 @@ def is_between(a, b, c):
 
 
 # initialize values
-q0 = [ 59.34824,   0.23125]
-q1 = [62.657629999999997, 0.23124]
-
+q0 = [ 59.209,   0.209]
+q1 = [ 62.774,   0.208]
 
 def intersection(q0, q1, p0, p1):
     dy = q0[1] - p0[1]
