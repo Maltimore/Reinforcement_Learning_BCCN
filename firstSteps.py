@@ -265,7 +265,7 @@ def update_state(state, step):
 
     
 def update_weights_eligibility(eligibility_history,
-                               W, eta=.01, gamma=.95, lambda_=.95):
+                               W, eta=.05, gamma=.95, lambda_=.9):
     """
     Update weights according to SARSA(Lambda).
     
@@ -291,26 +291,23 @@ def update_weights_eligibility(eligibility_history,
                 memory discount
     """    
     elig_len = len(eligibility_history)
-    gammalambda_ = gamma * lambda_ # just to save the computation..
-
+    gammalambda_ = gamma * lambda_
+    
     for t in np.arange(elig_len-1,-1,-1):       
         e = gammalambda_**(elig_len - t - 1)
         if e < .001:
             break
         # getting values out of the list
         eligibility_history_list = eligibility_history[t]
-        R_t = eligibility_history_list[0]
+        E = eligibility_history_list[0]
         Q_t = eligibility_history_list[1]
         a_t = eligibility_history_list[2]
         reward = eligibility_history_list[3]
         Q_t1 = eligibility_history_list[4]
-        E = eligibility_history_list[5]
 
-        delta_Q = eta * (reward + gamma*Q_t1 - Q_t)
-        delta_W = delta_Q * E[a_t,:,:]        
+        delta_Q = reward + gamma*Q_t1 - Q_t
+        delta_W = eta * delta_Q * E[a_t,:,:]
         W[a_t,:,:] = W[a_t,:,:] + delta_W
-        E *= gammalambda_
-        eligibility_history[t][5] = E
     
     # trim eligibility history to those values that are actually
     # processed (which corresponds to deleting the oldest element)
@@ -318,6 +315,13 @@ def update_weights_eligibility(eligibility_history,
         del eligibility_history[0]
         
     return W, eligibility_history
+
+
+def update_E(E, R_t, a_t, alpha, gamma=.95, lambda_=.90):
+    alpha = int(alpha)
+    E *= gamma * lambda_
+    E[a_t,:,:] += R_t
+    return E
 
 def reset_mouse(old_state, new_state):    
     def is_between(a, b, c):
@@ -375,14 +379,12 @@ def reset_mouse(old_state, new_state):
         if is_between(startpoints[i,:], endpoints[i,:], px) and \
            is_between(old_pos, new_pos, px):
             reset_to = px + .1 * (old_pos - px)
-            return np.hstack((reset_to, old_state[2])), px
-    print("no line was sected apparently")
-    print(type(old_state))
-    print(type(new_state))
-    print(px)
-    print(old_pos)
-    print(new_pos)
-    return old_state, np.array([0,0])
+            return np.hstack((reset_to, old_state[2])), np.hstack((px, old_state[2]))
+#    print("no line was sected apparently")
+#    print("Estimated intersection point: " + str(px))
+#    print("Old position was: " + str(old_pos))
+#    print("New position is:  " + str(new_pos))
+    return old_state, np.hstack(([0,0], old_state[2]))
 
 N_a = 4
 centers = gen_place_centers()
@@ -434,9 +436,8 @@ for episode in np.arange(500):
             # if the reward was -1, the mouse crashed into the wall. In this
             # case, Q_t1 is zero. Also, do not append the state to the history
             # of states (needed for plotting later)
-            eligibility_history.append([R_t, Q_t[a_t], a_t, r, 0, E])
+            eligibility_history.append([E, Q_t[a_t], a_t, r, 0])
             
-            ###################################################################
             # Reset mouse
             state_t1, bump = reset_mouse(state_t, state_t1)
             bumps.append(bump)            
@@ -444,50 +445,64 @@ for episode in np.arange(500):
             R_t1 = input_layer(centers, state_t1)
             Q_t1, directions = output_layer(R_t1, W)
             a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
-        elif r == 0:
-            states.append(state_t1)
-            eligibility_history.append([R_t, Q_t[a_t], a_t, r, Q_t1[a_t1], E])
+        elif r == 0:         
+            eligibility_history.append([E, Q_t[a_t], a_t, r, Q_t1[a_t1]])
         elif r == 20:
             # In the case that the reward is 20, the trial is over and Q_t1 is
             # therefore zero. Also set the flag to end the loop.
-            states.append(state_t1)
-            eligibility_history.append([R_t, Q_t[a_t], a_t, r, 0, E])
+            eligibility_history.append([E, Q_t[a_t], a_t, r, 0])
             non_terminal = False
-        
-
 
         # it seems weird that update_weight_eligibility returns the eligibility
         # history (although it gets it as an argument), but that is because
         # the eligibility history is "trimmed" to a useful length (see docstring
         # of the function)
+        E = update_E(E, R_t, a_t, state_t[2])    
+        eligibility_history[-1][0] = E
         W, eligibility_history = update_weights_eligibility(eligibility_history, W)       
-        # get E out of eligibility_history
-        E = eligibility_history[-1][5]
 
-            
         # set a_t1, step_t1, Q_t1, R_t1 to currenct values
         state_t = state_t1
         step_t = step_t1
         Q_t = Q_t1
         a_t = a_t1
         R_t = R_t1
-        E[a_t,:,:] += R_t
-        eligibility_history[-1][5] = E
+        
+        # save state to plot later
+        states.append(state_t)
             
     if r == 20 or steps_needed >= break_after_steps:
         print("steps needed: " + str(steps_needed))
-        states = np.array(states)
-        plt.figure()
-        plt.plot(centers[:,0],centers[:,1],'ok')
-        plt.plot(states[:,0], states[:,1])
-        plt.title("Steps: " +str(steps_needed))
-        for bump in bumps:
-            plt.scatter(bump[0], bump[1], s = 100)
+#        states = np.array(states)
+#        plt.figure()
+#        plt.plot(centers[:,0],centers[:,1],'ok')
+#        plt.plot(states[:,0], states[:,1])
+#        plt.title("Steps: " +str(steps_needed) + " epsilon: " + str(epsilon))
+#        bumps = np.array(bumps)
+#        plt.scatter(bumps[:,0], bumps[:,1], s = 100, c = 100 * bumps[:,2], edgecolor="")
+
+        # vector field
+#        for alpha in [0,1]:
+#            plt.figure()
+#            arrowvec = np.zeros(centers.shape)
+#            for idx, coordinate in enumerate(centers):
+#                state = np.array([coordinate[0], coordinate[1], alpha])
+#                R = input_layer(centers, state)
+#                Q, direction = output_layer(R, W)
+#                _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
+#            plt.figure()
+#            plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
+#            plt.title("Arrows represent choices for greedy policy and alpha = " + str(alpha))
+
+
         if steps_needed > break_after_steps:
             break
     
-    if steps_needed < 50 or steps_needed >= 10000:
+    if steps_needed < 50 or steps_needed >= 16000:
         # if there was an episode where just 60 steps were needed, stop
+        break
+    
+    if episode == 30:
         break
     
     epsilon = 1.4**(-episode-1) + .1
@@ -497,16 +512,17 @@ for episode in np.arange(500):
 
 
 # vector field
-arrowvec = np.zeros(centers.shape)
-for idx, coordinate in enumerate(centers):
-    alpha = 0
-    state = np.array([coordinate[0], coordinate[1], alpha])
-    R = input_layer(centers, state)
-    Q, direction = output_layer(R, W)
-    _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
-plt.figure()
-plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
-plt.title("Arrows represent choices for greedy policy and alpha = 0")
+for alpha in [0,1]:
+    plt.figure()
+    arrowvec = np.zeros(centers.shape)
+    for idx, coordinate in enumerate(centers):
+        state = np.array([coordinate[0], coordinate[1], alpha])
+        R = input_layer(centers, state)
+        Q, direction = output_layer(R, W)
+        _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
+    plt.figure()
+    plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
+    plt.title("Arrows represent choices for greedy policy and alpha = " + str(alpha))
 
 
 
