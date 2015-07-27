@@ -362,144 +362,163 @@ def reset_mouse(old_state, new_state):
 
 
 
-
-N_a = 4
-centers = gen_place_centers()
-W = np.random.normal(size=(N_a, centers.shape[0], 2))
-W = np.zeros((N_a, centers.shape[0], 2))
-E = np.zeros(W.shape)
-gamma = .95
-lambda_ = .95
-epsilon = 1
-break_after_steps = 20000
-
-
-for episode in np.arange(500):
-
-    # initialize s    
-    state_t = [55,0,0]
-    # initialize variables
-    non_terminal = True
-    steps_needed = 0
-    states = []    
-    bumps = []
+def learn_rat(draw=False):
+    N_a = 4
+    centers = gen_place_centers()
+    W = np.random.normal(size=(N_a, centers.shape[0], 2))
+    W = np.zeros((N_a, centers.shape[0], 2))
     E = np.zeros(W.shape)
-
-    # choose a from s using policy
-    R_t = input_layer(centers, state_t)
-    Q_t, directions = output_layer(R_t, W)
-    a_t, step_t = choose_action(Q_t, directions, epsilon)
+    gamma = .95
+    lambda_ = .90
+    epsilon = 1
+    break_after_steps = 40000
+    total_steps = []
     
-    # repeat (steps of the episode)
-    while non_terminal:
-
-        if steps_needed >= break_after_steps:
-            # if more than break_after_steps steps were needed, break (because the mouse
-            # most likely got stuck)
-            break
+    
+    for episode in np.arange(50):
+    
+        # initialize s    
+        state_t = [55,0,0]
+        # initialize variables
+        non_terminal = True
+        steps_needed = 0
+        states = []    
+        bumps = []
+        E = np.zeros(W.shape)
+    
+        # choose a from s using policy
+        R_t = input_layer(centers, state_t)
+        Q_t, directions = output_layer(R_t, W)
+        a_t, step_t = choose_action(Q_t, directions, epsilon)
         
-        steps_needed += 1
-        
-        # take action a (defined by step_t)        
-        state_t1, r = update_state(state_t, step_t)
-           
-
-        # choose a_t1 from state_t1 using policy
-        R_t1 = input_layer(centers, state_t1)
-        Q_t1, directions = output_layer(R_t1, W)
-        a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
-
-
-        # Distinguish the three cases of reward (-1, 0 and 20)
-        if r == -1 :
-            # if the reward was -1, the mouse crashed into the wall. In this
-            # case, Q_t1 is zero. Also, do not append the state to the history
-            # of states (needed for plotting later)
-            eligibility = [np.nan, Q_t[a_t], a_t, r, 0]
+        # repeat (steps of the episode)
+        while non_terminal:
+    
+            if steps_needed >= break_after_steps:
+                # if more than break_after_steps steps were needed, break (because the mouse
+                # most likely got stuck)
+                break
             
-            # Reset mouse
-            state_t1, bump = reset_mouse(state_t, state_t1)
-            bumps.append(bump)            
-            # choose a new step
+            steps_needed += 1
+            
+            # take action a (defined by step_t)        
+            state_t1, r = update_state(state_t, step_t)
+               
+    
+            # choose a_t1 from state_t1 using policy
             R_t1 = input_layer(centers, state_t1)
             Q_t1, directions = output_layer(R_t1, W)
             a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
-        elif r == 0:         
-           eligibility = [np.nan, Q_t[a_t], a_t, r, Q_t1[a_t1]]
-        elif r == 20:
-            # In the case that the reward is 20, the trial is over and Q_t1 is
-            # therefore zero. Also set the flag to end the loop.
-            eligibility = [np.nan, Q_t[a_t], a_t, r, 0]
-            non_terminal = False
-
-        # it seems weird that update_weight_eligibility returns the eligibility
-        # history (although it gets it as an argument), but that is because
-        # the eligibility history is "trimmed" to a useful length (see docstring
-        # of the function)
-        E[a_t,:,:] += R_t
-        eligibility[0] = E
-        W = update_weights_eligibility(W, *eligibility)
-        E = E * gamma * lambda_
-        # set a_t1, step_t1, Q_t1, R_t1 to currenct values
-        state_t = state_t1
-        step_t = step_t1
-        Q_t = Q_t1
-        a_t = a_t1
-        R_t = R_t1
-        
-        # save state to plot later
-        states.append(state_t)
+    
+    
+            # Distinguish the three cases of reward (-1, 0 and 20)
+            if r == -1 :
+                # if the reward was -1, the mouse crashed into the wall. In this
+                # case, Q_t1 is zero. Also, do not append the state to the history
+                # of states (needed for plotting later)
+                eligibility = [np.nan, Q_t[a_t], a_t, r, 0]
+                # Reset mouse
+                state_t1, bump = reset_mouse(state_t, state_t1)
+                bumps.append(bump)            
+    
+            elif r == 0:         
+               eligibility = [np.nan, Q_t[a_t], a_t, r, Q_t1[a_t1]]
+            elif r == 20:
+                # In the case that the reward is 20, the trial is over and Q_t1 is
+                # therefore zero. Also set the flag to end the loop.
+                eligibility = [np.nan, Q_t[a_t], a_t, r, 0]
+                non_terminal = False
+    
+            # it seems weird that update_weight_eligibility returns the eligibility
+            # history (although it gets it as an argument), but that is because
+            # the eligibility history is "trimmed" to a useful length (see docstring
+            # of the function)
+            E = E * gamma * lambda_
+            E[a_t,:,:] += R_t
+            eligibility[0] = E
+            W = update_weights_eligibility(W, *eligibility)
             
-    if r == 20 or steps_needed >= break_after_steps:
-        print("steps needed: " + str(steps_needed))
-        states = np.array(states)
-        plt.figure()
-        plt.plot(centers[:,0],centers[:,1],'ok')
-        plt.plot(states[:,0], states[:,1])
-        plt.title("Steps: " +str(steps_needed) + " epsilon: " + str(epsilon))
-        bumps = np.array(bumps)
-        if len(bumps) > 0:
-            plt.scatter(bumps[:,0], bumps[:,1], s = 100, c = 100 * bumps[:,2], edgecolor="")
-
-        # vector field
-#        for alpha in [0,1]:
-#            plt.figure()
-#            arrowvec = np.zeros(centers.shape)
-#            for idx, coordinate in enumerate(centers):
-#                state = np.array([coordinate[0], coordinate[1], alpha])
-#                R = input_layer(centers, state)
-#                Q, direction = output_layer(R, W)
-#                _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
-#            plt.figure()
-#            plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
-#            plt.title("Arrows represent choices for greedy policy and alpha = " + str(alpha))
-
     
-    if steps_needed < 50 or steps_needed >= break_after_steps:
-        # if there was an episode where just 60 steps were needed, stop
-        break
+            if r == -1:        
+                # choose a new step if it has bummed into a wall
+                R_t1 = input_layer(centers, state_t1)
+                Q_t1, directions = output_layer(R_t1, W)
+                a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
+            
+            # set a_t1, step_t1, Q_t1, R_t1 to currenct values
+            state_t = state_t1
+            step_t = step_t1
+            Q_t = Q_t1
+            a_t = a_t1
+            R_t = R_t1
+            
+            # save state to plot later
+            states.append(state_t)
+                
+        if r == 20 or steps_needed >= break_after_steps:
+            if draw:
+                print("steps needed: " + str(steps_needed))
+                states = np.array(states)
+                plt.figure()
+                plt.plot(centers[:,0],centers[:,1],'ok')
+                plt.plot(states[:,0], states[:,1])
+                plt.title("Steps: " +str(steps_needed) + " epsilon: " + str(epsilon))
+                bumps = np.array(bumps)
+                if len(bumps) > 0:
+                    plt.scatter(bumps[:,0], bumps[:,1], s = 100, c = 100 * bumps[:,2], edgecolor="")
     
-    if episode == 30:
-        break
+            # vector field\
+            #drawField = False
+            if draw:
+                for alpha in [0,1]:
+                    plt.figure()
+                    arrowvec = np.zeros(centers.shape)
+                    for idx, coordinate in enumerate(centers):
+                        state = np.array([coordinate[0], coordinate[1], alpha])
+                        R = input_layer(centers, state)
+                        Q, direction = output_layer(R, W)
+                        _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
+                    plt.figure()
+                    plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
+                    plt.title("Arrows represent choices for greedy policy and alpha = " + str(alpha))
     
-    epsilon = 1.4**(-episode-1) + .1
+        
+#        if steps_needed < 50 or steps_needed >= break_after_steps:
+#             #if there was an episode where just 60 steps were needed, stop
+#           break
+        
+        if episode == 300:
+            break
+        
+        epsilon = 1.4**(-episode-1) + .1
+        
+        total_steps.append(steps_needed)
+    return np.array(total_steps)
+
+
+rat_steps = np.zeros((10,50))
+for rat in np.arange(10):
+    rat_steps[rat,:] = learn_rat()
+
+plt.plot(np.mean(rat_steps,axis=0))
+plt.plot(rat_steps)
+plt.ylim(0,1000)
 
 
 
 
-
-# vector field
-for alpha in [0,1]:
-    plt.figure()
-    arrowvec = np.zeros(centers.shape)
-    for idx, coordinate in enumerate(centers):
-        state = np.array([coordinate[0], coordinate[1], alpha])
-        R = input_layer(centers, state)
-        Q, direction = output_layer(R, W)
-        _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
-    plt.figure()
-    plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
-    plt.title("Arrows represent choices for greedy policy and alpha = " + str(alpha))
+## vector field
+#for alpha in [0,1]:
+#    plt.figure()
+#    arrowvec = np.zeros(centers.shape)
+#    for idx, coordinate in enumerate(centers):
+#        state = np.array([coordinate[0], coordinate[1], alpha])
+#        R = input_layer(centers, state)
+#        Q, direction = output_layer(R, W)
+#        _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
+#    plt.figure()
+#    plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
+#    plt.title("Arrows represent choices for greedy policy and alpha = " + str(alpha))
 
 
 
