@@ -450,7 +450,7 @@ def run_trials(N_rats, N_episodes, epsilon_func, plot_at_episode=[],
             ################################
             # Plotting
             ################################
-            if episode in plot_at_episode:
+            if (episode+1) in plot_at_episode:
                 # if we're at an episode where we were asked to plot, do so
                 states = np.array(states)
                 
@@ -463,7 +463,7 @@ def run_trials(N_rats, N_episodes, epsilon_func, plot_at_episode=[],
                 if len(bumps) > 0:
                     plt.scatter(bumps[:,0], bumps[:,1], s = 100, \
                                 c = 100 * bumps[:,2], edgecolor="")
-        
+                plt.xticks([]); plt.yticks([]); plt.show()
                 
                 # the arrowfield showing the "best" direction (as determined by the mouse)
                 for alpha in [0,1]:
@@ -477,9 +477,10 @@ def run_trials(N_rats, N_episodes, epsilon_func, plot_at_episode=[],
                                                            mean=.6, sd=0)
                     plt.figure()
                     plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
-                    plt.title("Navigation map at episode " + str(episode) + \
+                    plt.title("Navigation map at episode " + str(episode+1) + \
                               " for alpha = " + str(alpha))
                     plt.xlim([-10, 120]); plt.ylim([-10, 70])
+                    plt.xticks([]); plt.yticks([]); plt.show()
             ################################
       
         
