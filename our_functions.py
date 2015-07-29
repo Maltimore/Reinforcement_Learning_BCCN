@@ -348,18 +348,24 @@ def reset_mouse(old_state, new_state):
             return np.hstack((reset_to, old_state[2])), np.hstack((px, old_state[2]))
     # if we couldn't determine correctly which line was sected, set the mouse
     # back to its old position
-    return old_state, np.hstack(([0,0], old_state[2]))
+    return old_state, old_state
 
 
 
 
-def run_trials(N_rats, N_trials, epsilon_func, plot_at_episode,
+def run_trials(N_rats, N_episodes, epsilon_func, plot_at_episode=[],
                gamma=.95, lambda_=.95, N_a=4):
-
+    print("")
+    print("Running " + str(N_rats) + " rats with " + str(N_episodes) + \
+          " episodes each.")
+    print("Lamba = " + str(lambda_))
+    print("Gamma = " + str(gamma))
+    print("")
+    
     # check whether  plot_at_episode is iterable, if not, make it so
     if not hasattr(plot_at_episode, "__iter__"):
         plot_at_episode = [plot_at_episode]
-    total_steps = np.zeros((N_rats, N_trials)) 
+    total_steps = np.zeros((N_rats, N_episodes)) 
     centers = gen_place_centers()
 
     for rat_idx in np.arange(N_rats):
@@ -369,7 +375,7 @@ def run_trials(N_rats, N_trials, epsilon_func, plot_at_episode,
         break_after_steps = 40000
 
     
-        for episode in np.arange(N_trials):    
+        for episode in np.arange(N_episodes):    
     
             # initialize variables
             non_terminal = True
@@ -452,7 +458,7 @@ def run_trials(N_rats, N_trials, epsilon_func, plot_at_episode,
                 plt.figure()
                 plt.plot(centers[:,0],centers[:,1],'ok')
                 plt.plot(states[:,0], states[:,1])
-                plt.title("Steps: " +str(steps_needed) + " epsilon: " + str(epsilon))
+                plt.title("Steps: " +str(steps_needed) + " epsilon: " + str(round(epsilon, 2)))
                 bumps = np.array(bumps)
                 if len(bumps) > 0:
                     plt.scatter(bumps[:,0], bumps[:,1], s = 100, \
@@ -466,12 +472,14 @@ def run_trials(N_rats, N_trials, epsilon_func, plot_at_episode,
                     for idx, coordinate in enumerate(centers):
                         state = np.array([coordinate[0], coordinate[1], alpha])
                         R = input_layer(centers, state)
-                        Q, direction = output_layer(R, W)
+                        Q, directions = output_layer(R, W)
                         _, arrowvec[idx,:] = choose_action(Q, directions, 0, \
                                                            mean=.6, sd=0)
                     plt.figure()
                     plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
-                    plt.title("Arrows represent choices for greedy policy and alpha = " + str(alpha))
+                    plt.title("Navigation map at episode " + str(episode) + \
+                              " for alpha = " + str(alpha))
+                    plt.xlim([-10, 120]); plt.ylim([-10, 70])
             ################################
       
         
