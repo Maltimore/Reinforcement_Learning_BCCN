@@ -351,17 +351,20 @@ def reset_mouse(old_state, new_state):
     return old_state, old_state
 
 
+def exponential_epsilon_decline(episode_number):
+    return 1.5**(-episode_number) + .1
 
 
-def run_trials(N_rats, N_episodes, epsilon_func, plot_at_episode=[],
-               gamma=.95, lambda_=.95, N_a=4):
+def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline, \
+               plot_at_episode=[], gamma=.95, lambda_=.95, N_a=4):
     print("")
     print("Running " + str(N_rats) + " rats with " + str(N_episodes) + \
           " episodes each.")
     print("Lamba = " + str(lambda_))
     print("Gamma = " + str(gamma))
     print("")
-    
+
+    break_after_steps = 20000
     # check whether  plot_at_episode is iterable, if not, make it so
     if not hasattr(plot_at_episode, "__iter__"):
         plot_at_episode = [plot_at_episode]
@@ -371,12 +374,9 @@ def run_trials(N_rats, N_episodes, epsilon_func, plot_at_episode=[],
     for rat_idx in np.arange(N_rats):
         print("Running rat number " + str(rat_idx))
         W = np.zeros((N_a, centers.shape[0], 2))
-        E = np.zeros(W.shape)
-        break_after_steps = 40000
-
     
         for episode in np.arange(N_episodes):    
-    
+            
             # initialize variables
             non_terminal = True
             steps_needed = 0
@@ -390,9 +390,10 @@ def run_trials(N_rats, N_episodes, epsilon_func, plot_at_episode=[],
             R_t = input_layer(centers, state_t)
             Q_t, directions = output_layer(R_t, W)
             a_t, step_t = choose_action(Q_t, directions, epsilon)
-            
             # repeat (steps of the episode)
             while non_terminal:
+                print(steps_needed, epsilon)
+                print(W.shape)
                 if steps_needed >= break_after_steps:
                     # if more than break_after_steps steps were needed, break 
                     # (because the mouse most likely got stuck)
