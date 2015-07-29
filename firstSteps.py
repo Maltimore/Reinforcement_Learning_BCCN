@@ -266,7 +266,7 @@ def update_state(state, step):
 
     
 def update_weights_eligibility(W, E, Q_t, a_t, r, Q_t1,
-                               eta=.05, gamma=.95, lambda_=.9):
+                               eta=.02):
     """
     Update weights according to SARSA(Lambda).
     
@@ -395,7 +395,6 @@ for episode in np.arange(50):
     
     # repeat (steps of the episode)
     while non_terminal:
-
         if steps_needed >= break_after_steps:
             # if more than break_after_steps steps were needed, break (because the mouse
             # most likely got stuck)
@@ -456,30 +455,31 @@ for episode in np.arange(50):
         
         # save state to plot later
         states.append(state_t)
+        W *= .9
             
     if r == 20 or steps_needed >= break_after_steps:
         print("steps needed: " + str(steps_needed))
-        states = np.array(states)
-        plt.figure()
-        plt.plot(centers[:,0],centers[:,1],'ok')
-        plt.plot(states[:,0], states[:,1])
-        plt.title("Steps: " +str(steps_needed) + " epsilon: " + str(epsilon))
-        bumps = np.array(bumps)
-        if len(bumps) > 0:
-            plt.scatter(bumps[:,0], bumps[:,1], s = 100, c = 100 * bumps[:,2], edgecolor="")
+#        states = np.array(states)
+#        plt.figure()
+#        plt.plot(centers[:,0],centers[:,1],'ok')
+#        plt.plot(states[:,0], states[:,1])
+#        plt.title("Steps: " +str(steps_needed) + " epsilon: " + str(epsilon))
+#        bumps = np.array(bumps)
+#        if len(bumps) > 0:
+#            plt.scatter(bumps[:,0], bumps[:,1], s = 100, c = 100 * bumps[:,2], edgecolor="")
 
 
-        for alpha in [0,1]:
-            plt.figure()
-            arrowvec = np.zeros(centers.shape)
-            for idx, coordinate in enumerate(centers):
-                state = np.array([coordinate[0], coordinate[1], alpha])
-                R = input_layer(centers, state)
-                Q, direction = output_layer(R, W)
-                _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
-            plt.figure()
-            plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
-            plt.title("Arrows represent choices for greedy policy and alpha = " + str(alpha))
+#        for alpha in [0,1]:
+#            plt.figure()
+#            arrowvec = np.zeros(centers.shape)
+#            for idx, coordinate in enumerate(centers):
+#                state = np.array([coordinate[0], coordinate[1], alpha])
+#                R = input_layer(centers, state)
+#                Q, direction = output_layer(R, W)
+#                _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
+#            plt.figure()
+#            plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
+#            plt.title("Arrows represent choices for greedy policy and alpha = " + str(alpha))
 
     
         if steps_needed < 50 or steps_needed >= break_after_steps:
