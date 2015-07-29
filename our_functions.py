@@ -440,7 +440,7 @@ def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline
                 
                 # save state to plot later
                 states.append(state_t)
-                W *= .9
+#                W *= .9
                 # iterate number of steps needed
                 steps_needed += 1
     
