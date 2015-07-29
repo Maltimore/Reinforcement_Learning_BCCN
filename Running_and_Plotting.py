@@ -64,7 +64,7 @@ plot_learning_curve(steps_needed, N_rats, N_episodes, plottitle)
 # Point 5: Varying the number of directions
 N_rats = 1
 N_episodes = 30
-N_a_vec = [4, 5, 10, 15, 50]
+N_a_vec = [4, 5, 6, 7, 8]
 steps_needed_mat = np.zeros((len(N_a_vec), N_episodes))
 for idx, N_a in enumerate(N_a_vec):
     steps_needed_mat[idx,:] = RL.run_trials(N_rats, N_episodes, \

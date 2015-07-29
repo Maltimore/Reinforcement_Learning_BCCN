@@ -392,8 +392,6 @@ def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline
             a_t, step_t = choose_action(Q_t, directions, epsilon)
             # repeat (steps of the episode)
             while non_terminal:
-                print(steps_needed, epsilon)
-                print(W.shape)
                 if steps_needed >= break_after_steps:
                     # if more than break_after_steps steps were needed, break 
                     # (because the mouse most likely got stuck)
@@ -447,6 +445,7 @@ def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline
                 steps_needed += 1
     
             total_steps[rat_idx, episode] = steps_needed
+            print("steps needed: " + str(steps_needed))
             
             ################################
             # Plotting
