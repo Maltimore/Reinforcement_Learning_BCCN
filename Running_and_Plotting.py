@@ -9,7 +9,17 @@ mpl.rcParams['font.size'] = 20
 def plot_learning_curve(steps_needed, N_rats, N_episodes, plottitle):
     plt.figure(figsize=(12,8))
     plt.plot(np.arange(1,N_episodes+1), steps_needed)
-    plt.title(plottitle)
+    #plt.title(plottitle)
+    plt.xlim([1,N_episodes])
+    plt.xlabel("Number of episode")
+    plt.ylabel("Number of steps needed")
+    
+def plot_multiple_learning_curve(steps_needed_list, labels, N_rats, N_episodes, plottitle):
+    plt.figure(figsize=(12,8))
+    for i in range(len(steps_needed_list)):
+        plt.plot(np.arange(1,N_episodes+1), steps_needed_list[i],label=labels[i])
+    plt.legend()
+    #plt.title(plottitle)
     plt.xlim([1,N_episodes])
     plt.xlabel("Number of episode")
     plt.ylabel("Number of steps needed")
@@ -44,20 +54,28 @@ steps_needed = RL.run_trials(N_rats, N_episodes, exponential_epsilon_decline,
 N_rats = 5
 N_episodes = 30
 lambda_ = 0
+
+steps_needed_list = []
+labels = []
 plottitle = "Needed steps averaged over " + str(N_rats) + " rats" \
             " with lambda = " + str(lambda_)
+label = '$\lambda$ = ' +str(lambda_)
+labels.append(label)
 steps_needed = RL.run_trials(N_rats, N_episodes, exponential_epsilon_decline, \
                              lambda_=lambda_)
-plot_learning_curve(steps_needed, N_rats, N_episodes, plottitle)
-plt.savefig('plots/learning_curve_lambda0.png',format='png')
+steps_needed_list.append(steps_needed)
+
 
 lambda_ = .95
 plottitle = "Needed steps averaged over " + str(N_rats) + " rats" \
             " with lambda = " + str(lambda_)
 steps_needed = RL.run_trials(N_rats, N_episodes, exponential_epsilon_decline, \
                              lambda_=lambda_)
-plot_learning_curve(steps_needed, N_rats, N_episodes, plottitle)
-plt.savefig('plots/learning_curve_lambda095.png',format='png')
+label = '$\lambda$ = ' +str(lambda_)
+labels.append(label)
+steps_needed_list.append(steps_needed)
+plot_multiple_learning_curve(steps_needed_list,labels, N_rats, N_episodes, plottitle)
+plt.savefig('plots/learning_curves_lambda.png',format='png')
 ###############################################################################
 # Point 4: Varying the time course of the exploration / exploitation parameter
 steps_needed = RL.run_trials(N_rats, N_episodes, reverse_exponential_epsilon)
@@ -75,3 +93,7 @@ for idx, N_a in enumerate(N_a_vec):
     steps_needed_mat[idx,:] = RL.run_trials(N_rats, N_episodes, \
                                             exponential_epsilon_decline, \
                                             N_a=N_a)
+plot_learning_curve(steps_needed_mat.T, N_rats, N_episodes, plottitle)
+labels = ['$N_a$ = ' +str(N_a_vec[i]) for i in range(len(N_a_vec))]
+plt.legend(labels)
+plt.savefig('plots/learning_curves_Na.png',format='png')
