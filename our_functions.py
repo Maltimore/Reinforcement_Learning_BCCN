@@ -440,7 +440,7 @@ def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline
                 
                 # save state to plot later
                 states.append(state_t)
-#                W *= .9
+                W *= .9
                 # iterate number of steps needed
                 steps_needed += 1
     
@@ -464,10 +464,13 @@ def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline
                     plt.scatter(bumps[:,0], bumps[:,1], s = 100, \
                                 c = 100 * bumps[:,2], edgecolor="")
                 plt.xticks([]); plt.yticks([]); plt.show()
+                plt.savefig('pathwayPlot_Na'+str(N_a)+'_Nrats'+str(N_rats)+\
+                            '_episode'+str(episode+1)+'.png',format='png')
                 
                 # the arrowfield showing the "best" direction (as determined by the mouse)
+                plt.figure(figsize=(16,8))
                 for alpha in [0,1]:
-                    plt.figure()
+                    plt.subplot(1,2,alpha+1)
                     arrowvec = np.zeros(centers.shape)
                     for idx, coordinate in enumerate(centers):
                         state = np.array([coordinate[0], coordinate[1], alpha])
@@ -475,12 +478,14 @@ def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline
                         Q, directions = output_layer(R, W)
                         _, arrowvec[idx,:] = choose_action(Q, directions, 0, \
                                                            mean=.6, sd=0)
-                    plt.figure()
                     plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
-                    plt.title("Navigation map at episode " + str(episode+1) + \
-                              " for alpha = " + str(alpha))
+                    plt.title("alpha = " + str(alpha),fontdict={'fontsize':10 })
                     plt.xlim([-10, 120]); plt.ylim([-10, 70])
-                    plt.xticks([]); plt.yticks([]); plt.show()
+                    plt.xticks([]); plt.yticks([]); 
+                plt.suptitle("Navigation map at episode " + str(episode+1),fontsize=12)                    
+                plt.show()
+                plt.savefig('naviPlot_Na'+str(N_a)+'_Nrats'+str(N_rats)+\
+                            '_episode'+str(episode+1)+'.png',format='png')
             ################################
       
         
