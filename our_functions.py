@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.linalg import pinv
 
 def gen_place_centers():
     """
@@ -315,10 +314,10 @@ def reset_mouse(old_state, new_state):
         b = np.array([rhs0, 
                       rhs1])
         try:
-            px = np.linalg.solve(a, b)
+            p_intersect = np.linalg.solve(a, b)
         except:
-            px = np.array([np.nan, np.nan])
-        return px
+            p_intersect = np.array([np.nan, np.nan])
+        return p_intersect
     old_state = np.asarray(old_state)
     new_state = np.asarray(new_state)
     old_pos = old_state[:2]
@@ -341,11 +340,11 @@ def reset_mouse(old_state, new_state):
                           [60, 50],
                           [110, 60]])
     for i in np.arange(8):   
-        px = intersection(startpoints[i,:], old_pos, endpoints[i,:], new_pos)
-        if is_between(startpoints[i,:], endpoints[i,:], px) and \
-           is_between(old_pos, new_pos, px):
-            reset_to = px + .1 * (old_pos - px)
-            return np.hstack((reset_to, old_state[2])), np.hstack((px, old_state[2]))
+        p_intersect = intersection(startpoints[i,:], old_pos, endpoints[i,:], new_pos)
+        if is_between(startpoints[i,:], endpoints[i,:], p_intersect) and \
+           is_between(old_pos, new_pos, p_intersect):
+            reset_to = p_intersect + .1 * (old_pos - p_intersect)
+            return np.hstack((reset_to, old_state[2])), np.hstack((p_intersect, old_state[2]))
     # if we couldn't determine correctly which line was sected, set the mouse
     # back to its old position
     return old_state, old_state
@@ -464,7 +463,7 @@ def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline
                     plt.scatter(bumps[:,0], bumps[:,1], s = 100, \
                                 c = 100 * bumps[:,2], edgecolor="")
                 plt.xticks([]); plt.yticks([]); plt.show()
-                plt.savefig('pathwayPlot_Na'+str(N_a)+'_Nrats'+str(N_rats)+\
+                plt.savefig('plots/pathwayPlot_Na'+str(N_a)+'_Nrats'+str(N_rats)+\
                             '_episode'+str(episode+1)+'.png',format='png')
                 
                 # the arrowfield showing the "best" direction (as determined by the mouse)
@@ -479,12 +478,12 @@ def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline
                         _, arrowvec[idx,:] = choose_action(Q, directions, 0, \
                                                            mean=.6, sd=0)
                     plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
-                    plt.title("alpha = " + str(alpha),fontdict={'fontsize':10 })
+                    plt.title("alpha = " + str(alpha))
                     plt.xlim([-10, 120]); plt.ylim([-10, 70])
                     plt.xticks([]); plt.yticks([]); 
-                plt.suptitle("Navigation map at episode " + str(episode+1),fontsize=12)                    
+                plt.suptitle("Navigation map at episode " + str(episode+1),fontsize=22)                    
                 plt.show()
-                plt.savefig('naviPlot_Na'+str(N_a)+'_Nrats'+str(N_rats)+\
+                plt.savefig('plots/naviPlot_Na'+str(N_a)+'_Nrats'+str(N_rats)+\
                             '_episode'+str(episode+1)+'.png',format='png')
             ################################
       

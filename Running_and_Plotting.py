@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import our_functions as RL
 plt.style.use('ggplot')
 
+import matplotlib as mpl
+mpl.rcParams['font.size'] = 20
+
 def plot_learning_curve(steps_needed, N_rats, N_episodes, plottitle):
     plt.figure(figsize=(12,8))
     plt.plot(np.arange(1,N_episodes+1), steps_needed)
@@ -26,7 +29,7 @@ plottitle = "Needed steps averaged over " + str(N_rats) + " rats" \
             " using standard parameters"
 steps_needed = RL.run_trials(N_rats, N_episodes, exponential_epsilon_decline)
 plot_learning_curve(steps_needed, N_rats, N_episodes, plottitle)
-plt.savefig('learning_curve_standard.png',format='png')
+plt.savefig('plots/learning_curve_standard.png',format='png')
 
 ###############################################################################
 # Point 2: Plotting the navigation map of the animal after different numbers of
@@ -46,7 +49,7 @@ plottitle = "Needed steps averaged over " + str(N_rats) + " rats" \
 steps_needed = RL.run_trials(N_rats, N_episodes, exponential_epsilon_decline, \
                              lambda_=lambda_)
 plot_learning_curve(steps_needed, N_rats, N_episodes, plottitle)
-plt.savefig('learning_curve_lambda0.png',format='png')
+plt.savefig('plots/learning_curve_lambda0.png',format='png')
 
 lambda_ = .95
 plottitle = "Needed steps averaged over " + str(N_rats) + " rats" \
@@ -54,14 +57,14 @@ plottitle = "Needed steps averaged over " + str(N_rats) + " rats" \
 steps_needed = RL.run_trials(N_rats, N_episodes, exponential_epsilon_decline, \
                              lambda_=lambda_)
 plot_learning_curve(steps_needed, N_rats, N_episodes, plottitle)
-plt.savefig('learning_curve_lambda095.png',format='png')
+plt.savefig('plots/learning_curve_lambda095.png',format='png')
 ###############################################################################
 # Point 4: Varying the time course of the exploration / exploitation parameter
 steps_needed = RL.run_trials(N_rats, N_episodes, reverse_exponential_epsilon)
 plottitle = "Needed steps averaged over " + str(N_rats) + " rats" \
             " with increasing epsilon"
 plot_learning_curve(steps_needed, N_rats, N_episodes, plottitle)
-plt.savefig('learning_curve_epsilonUp.png',format='png')
+plt.savefig('plots/learning_curve_epsilonUp.png',format='png')
 ###############################################################################
 # Point 5: Varying the number of directions
 N_rats = 1
