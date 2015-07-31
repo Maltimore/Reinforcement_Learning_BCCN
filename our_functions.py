@@ -355,7 +355,8 @@ def exponential_epsilon_decline(episode_number):
 
 
 def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline, \
-               plot_at_episode=[], gamma=.95, lambda_=.95, N_a=4):
+               plot_at_episode=[], gamma=.95, lambda_=.95, N_a=4, \
+               weight_decay=True):
     print("")
     print("Running " + str(N_rats) + " rats with " + str(N_episodes) + \
           " episodes each.")
@@ -439,7 +440,8 @@ def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline
                 
                 # save state to plot later
                 states.append(state_t)
-                W *= .9
+                if weight_decay:                
+                    W *= .9
                 # iterate number of steps needed
                 steps_needed += 1
     
