@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import pinv
 from mpl_toolkits.mplot3d import axes3d
-from _functions import learn_rat
+#from _functions import learn_rat
 
 def gen_place_centers():
     """
@@ -397,6 +397,12 @@ for episode in np.arange(50):
     Q_t, directions = output_layer(R_t, W)
     a_t, step_t = choose_action(Q_t, directions, epsilon)
     
+    # save all the steps, Q-values, weights and e-values
+    step_history = []
+    q_history = []
+    w_history = []
+    e_history = []
+    
     # repeat (steps of the episode)
     while non_terminal:
 
@@ -407,7 +413,7 @@ for episode in np.arange(50):
         
         steps_needed += 1
         
-        if learned_flag and steps_needed>1000:
+        if learned_flag and steps_needed>200:
             ratIsLost_flag = True
             break
         # take action a (defined by step_t)        
@@ -454,12 +460,19 @@ for episode in np.arange(50):
             Q_t1, directions = output_layer(R_t1, W)
             a_t1, step_t1 = choose_action(Q_t1, directions, epsilon)
         
+        # save values in history
+        step_history.append(step_t)
+        q_history.append(Q_t)
+        w_history.append(W)
+        e_history.append(E)        
+        
         # set a_t1, step_t1, Q_t1, R_t1 to currenct values
         state_t = state_t1
         step_t = step_t1
         Q_t = Q_t1
         a_t = a_t1
         R_t = R_t1
+    
         
         # save state to plot later
         states.append(state_t)
@@ -469,14 +482,14 @@ for episode in np.arange(50):
     
     if r == 20 or steps_needed >= break_after_steps:
         print("steps needed: " + str(steps_needed))
-#        states = np.array(states)
-#        plt.figure()
-#        plt.plot(centers[:,0],centers[:,1],'ok')
-#        plt.plot(states[:,0], states[:,1])
-#        plt.title("Steps: " +str(steps_needed) + " epsilon: " + str(epsilon))
-#        bumps = np.array(bumps)
-#        if len(bumps) > 0:
-#            plt.scatter(bumps[:,0], bumps[:,1], s = 100, c = 100 * bumps[:,2], edgecolor="")
+        states = np.array(states)
+        plt.figure()
+        plt.plot(centers[:,0],centers[:,1],'ok')
+        plt.plot(states[:,0], states[:,1])
+        plt.title("Steps: " +str(steps_needed) + " epsilon: " + str(epsilon))
+        bumps = np.array(bumps)
+        if len(bumps) > 0:
+            plt.scatter(bumps[:,0], bumps[:,1], s = 100, c = 100 * bumps[:,2], edgecolor="")
 
 
 #        for alpha in [0,1]:
@@ -494,13 +507,13 @@ for episode in np.arange(50):
         if steps_needed < 100:
             learned_flag = True
         
-        if steps_needed < 50 or steps_needed >= break_after_steps:
+        if steps_needed < 40 or steps_needed >= break_after_steps:
            break
     
     if episode == 30:
         break
     
-    epsilon = 1.4**(-episode-1) + .1
+    epsilon = 1.5**(-episode-1) + .1
     
     total_steps.append(steps_needed)
 
@@ -521,54 +534,54 @@ for episode in np.arange(50):
 
 
 # vector field
-for alpha in [0,1]:
-    plt.figure()
-    arrowvec = np.zeros(centers.shape)
-    for idx, coordinate in enumerate(centers):
-        state = np.array([coordinate[0], coordinate[1], alpha])
-        R = input_layer(centers, state)
-        Q, direction = output_layer(R, W)
-        _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
-    plt.figure()
-    plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
-    plt.title("Arrows represent choices for greedy policy and alpha = " + str(alpha))
+#for alpha in [0,1]:
+#    plt.figure()
+#    arrowvec = np.zeros(centers.shape)
+#    for idx, coordinate in enumerate(centers):
+#        state = np.array([coordinate[0], coordinate[1], alpha])
+#        R = input_layer(centers, state)
+#        Q, direction = output_layer(R, W)
+#        _, arrowvec[idx,:] = choose_action(Q, directions, 0, mean=.6, sd=0)
+#    plt.figure()
+#    plt.quiver(centers[:,0], centers[:,1], arrowvec[:,0], arrowvec[:,1])
+#    plt.title("Arrows represent choices for greedy policy and alpha = " + str(alpha))
 
-weights_pop1_2D = {'dir0':np.zeros((60,110)),'dir1':np.zeros((60,110)),\
-              'dir2':np.zeros((60,110)),'dir3':np.zeros((60,110))}
-weights_pop2_2D = {'dir0':np.zeros((60,110)),'dir1':np.zeros((60,110)),\
-              'dir2':np.zeros((60,110)),'dir3':np.zeros((60,110))}
-weights_2D = {'pop1':weights_pop1_2D, 'pop2':weights_pop2_2D}
-
-for idx in np.arange(centers.shape[0]):
-    xCoo = int(np.floor(centers[idx,0]))
-    yCoo = int(np.floor(centers[idx,1]))
-    for i in range(4):
-        for j in range(2):
-            weights_2D['pop1']['dir'+str(i)][yCoo,xCoo] = W[i,idx,0]
-            weights_2D['pop2']['dir'+str(i)][yCoo,xCoo] = W[i,idx,1]
-
-direction_strings = ['up','left','down','right']
-
-for pop in weights_2D.keys():
-    plt.figure(figsize=(16,12))
-    for i in range(4):
-        plt.subplot(2,2,i+1)    
-        plt.imshow(weights_2D[pop]['dir'+str(i)]*10,origin='lower',clim=[-1,1])
-        plt.title('Direction: ' + direction_strings[i])
-        plt.colorbar()
-    plt.suptitle(pop)
-
-# i played around a bit with 3D plots but the result is not that satisfying
-from matplotlib import cm
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-xgrid = np.arange(60)
-ygrid = np.arange(110)
-x,y = np.meshgrid(ygrid,xgrid)
-ax.plot_wireframe(x,y,weights_2D['pop1']['dir0'],alpha=0.3)
-cset = ax.contour(x, y, weights_2D['pop1']['dir0'], zdir='z', offset=-2, cmap=cm.coolwarm)
-ax.set_zlabel('Z')
-ax.set_zlim(-2, 2)
+#weights_pop1_2D = {'dir0':np.zeros((60,110)),'dir1':np.zeros((60,110)),\
+#              'dir2':np.zeros((60,110)),'dir3':np.zeros((60,110))}
+#weights_pop2_2D = {'dir0':np.zeros((60,110)),'dir1':np.zeros((60,110)),\
+#              'dir2':np.zeros((60,110)),'dir3':np.zeros((60,110))}
+#weights_2D = {'pop1':weights_pop1_2D, 'pop2':weights_pop2_2D}
+#
+#for idx in np.arange(centers.shape[0]):
+#    xCoo = int(np.floor(centers[idx,0]))
+#    yCoo = int(np.floor(centers[idx,1]))
+#    for i in range(4):
+#        for j in range(2):
+#            weights_2D['pop1']['dir'+str(i)][yCoo,xCoo] = W[i,idx,0]
+#            weights_2D['pop2']['dir'+str(i)][yCoo,xCoo] = W[i,idx,1]
+#
+#direction_strings = ['up','left','down','right']
+#
+#for pop in weights_2D.keys():
+#    plt.figure(figsize=(16,12))
+#    for i in range(4):
+#        plt.subplot(2,2,i+1)    
+#        plt.imshow(weights_2D[pop]['dir'+str(i)]*10,origin='lower',clim=[-1,1])
+#        plt.title('Direction: ' + direction_strings[i])
+#        plt.colorbar()
+#    plt.suptitle(pop)
+#
+## i played around a bit with 3D plots but the result is not that satisfying
+#from matplotlib import cm
+#fig = plt.figure()
+#ax = fig.add_subplot(111, projection='3d')
+#xgrid = np.arange(60)
+#ygrid = np.arange(110)
+#x,y = np.meshgrid(ygrid,xgrid)
+#ax.plot_wireframe(x,y,weights_2D['pop1']['dir0'],alpha=0.3)
+#cset = ax.contour(x, y, weights_2D['pop1']['dir0'], zdir='z', offset=-2, cmap=cm.coolwarm)
+#ax.set_zlabel('Z')
+#ax.set_zlim(-2, 2)
 
 
 
