@@ -153,23 +153,23 @@ def choose_action(Q, directions, epsilon, mean=3, sd=1.5):
     is the x and y value of the movement that the rat will perform.
     
     Parameters:
-    Q:       array-like
-             shape: N_output_neurons
-             The activity of the nreurons in the output layer.
-    dirs:    array-like
-             shape: N_output_neurons
-             The directions that the output neurons correspond to.
-             Unit is radians.
-    epsilon: float
-             The epsilon value determines how many times (relatively)
-             the mouse chooses an exploratory action instead of the
-             reward maximizing action.
+    Q:              array-like
+                    shape: N_output_neurons
+                    The activity of the nreurons in the output layer.
+    directions:     array-like
+                    shape: N_output_neurons
+                    The directions that the output neurons correspond to.
+                    Unit is radians.
+    epsilon:        float
+                    The epsilon value determines how many times (relatively)
+                    the mouse chooses an exploratory action instead of the
+                    reward maximizing action.
              
     Returns:
-    a:       int
-             the action as index of Q values
-    step:    [int, int]
-             The step [x value, y value] that the mouse will take.
+    a:              int
+                    the action as index of Q values
+    step:           [int, int]
+                    The step [x value, y value] that the mouse will take.
     """
 
     # determine stepsize
@@ -265,16 +265,20 @@ def update_weights_eligibility(W, E, Q_t, a_t, r, Q_t1,
     according to the SARSA(Lambda) rule.
     
     Parameters:
-    eligibility_history: list of lists
-                The "higher" dimension holds the history of the chosen
-                actions and states, and every list of the list holds 
-                the five parameters [R_t, Q_t, action_t, reward, Q_t1]
-                (see the "normal" update_weights function).
     W:          array-like
                 shape: N_output_neurons x N_input_neurons x beta_indices
                 Connectivity matrix, follows format [input_neuron,
                 output_neuron, beta] (corresponds to [a,j,beta] from
-                the problem sheet)
+    E:          array-like
+                shape: N_output_neurons x N_input_neurons x beta_indices
+                Eligibility trace
+    Q:          array-like
+                shape: N_output_neurons
+                The activity of the nreurons in the output layer.
+    a_t:        int
+                the chosen action at timestep t
+    r_t:        float
+                the reward received at timestep t
     eta:        float, optional
                 Learning rate
     gamma:      float, optional
@@ -288,7 +292,25 @@ def update_weights_eligibility(W, E, Q_t, a_t, r, Q_t1,
     return W
 
 
-def reset_mouse(old_state, new_state):    
+def reset_mouse(old_state, new_state):
+    """
+    Reset the mouse after it ran into a wall.
+    
+    Parameters:
+    old state:         array-like
+                       shape: 3 elements
+                       Containing the following elements: [x, y, alpha]
+    new state:         array-like
+                       shape: 3 elements
+                       Containing the following elements: [x, y, alpha]
+    Returns:
+    new_state:         array-like
+                       shape: 3 elements
+                       Containing the following elements: [x, y, alpha]
+    bump:              array-like
+                       shape: 2 elements
+                       the x and y position where the rat bumped into the wall.
+    """
     def is_between(a, b, c):
         a[0], a[1] = round(a[0], 3), round(a[1], 3)
         b[0], b[1] = round(b[0], 3), round(b[1], 3)
@@ -357,6 +379,23 @@ def exponential_epsilon_decline(episode_number):
 def run_trials(N_rats=1, N_episodes=30, epsilon_func=exponential_epsilon_decline, \
                plot_at_episode=[], gamma=.95, lambda_=.95, N_a=4, \
                weight_decay=True):
+    """
+    Run the simulation. All parameters self explanatory except:
+    epsilon_func:           callable, should accept int input
+                            The function with which epsilon should change 
+                            depending on which episode the rat is in.
+    plot_at_episode:        int or array-like
+                            The episodes at which navigation maps should be
+                            plotted
+    weight_decay:           bool
+                            Whether to use our 'dirty hack' to prevent the rat
+                            from getting stuck.
+    Returns:
+    steps_needed:           array-like
+                            The number of steps needed per episode, averaged 
+                            over all rats.
+    """
+    
     print("")
     print("Running " + str(N_rats) + " rats with " + str(N_episodes) + \
           " episodes each.")
